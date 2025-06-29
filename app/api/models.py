@@ -41,14 +41,9 @@ class AttackRequest(BaseModel):
     me: CreatureStats = Field(..., description="自分の召喚獣")
     enemy: CreatureStats = Field(..., description="敵の召喚獣")
 
-class AttackResult(BaseModel):
-    """攻撃結果"""
-    damage: int = Field(..., description="ダメージ量")
-    comment: str = Field(..., description="攻撃コメント")
-
 class AttackResponse(BaseModel):
     """攻撃レスポンス"""
-    result: AttackResult = Field(..., description="攻撃結果")
+    result: 'AttackResultData' = Field(..., description="攻撃結果")
 
 class FinishRequest(BaseModel):
     """勝負決着リクエスト"""
@@ -130,9 +125,27 @@ class AttackResultData(BaseModel):
     comment: str = Field(..., description="攻撃を放ったときの実況コメント")
     attacker: AttackParticipant = Field(..., description="攻撃者情報")
     defender: AttackParticipant = Field(..., description="防御者情報")
+    
+    @property
+    def damage(self) -> int:
+        """後方互換性のためのダメージプロパティ"""
+        return abs(self.defender.damage)
 
 class AttackResultResponse(BaseModel):
     """攻撃結果保存のレスポンス"""
+    success: bool = Field(..., description="処理成功フラグ")
+    execution_id: str = Field(..., description="実行UUID")
+    result_type: str = Field(..., description="結果タイプ")
+    timestamp: str = Field(..., description="処理時刻")
+    message: str = Field(..., description="処理メッセージ")
+    processing_status: str = Field(..., description="処理ステータス")
+
+class FinishCommentData(BaseModel):
+    """決着コメントデータ"""
+    comment: str = Field(..., description="決着時のコメント")
+
+class FinishCommentResponse(BaseModel):
+    """決着コメント保存のレスポンス"""
     success: bool = Field(..., description="処理成功フラグ")
     execution_id: str = Field(..., description="実行UUID")
     result_type: str = Field(..., description="結果タイプ")

@@ -1,3 +1,4 @@
+import { MCP_CONFIG } from './constants.js';
 /**
  * API通信クラス
  */
@@ -106,11 +107,15 @@ export class SummonBattleAPI {
     /**
      * MCP結果をポーリング
      */
-    async pollMCPResult(maxAttempts = 30, interval = 1000) {
+    async pollMCPResult(maxAttempts = MCP_CONFIG.MAX_ATTEMPTS, interval = MCP_CONFIG.POLL_INTERVAL, onProgress) {
         try {
             console.log(`MCPポーリング開始: 最大${maxAttempts}回試行、${interval}ms間隔`);
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
                 console.log(`MCPポーリング試行 ${attempt + 1}/${maxAttempts}`);
+                // プログレスコールバックを呼び出し
+                if (onProgress) {
+                    onProgress(attempt + 1, maxAttempts);
+                }
                 // MCP結果の状態確認
                 const statusResponse = await fetch(`${this.baseURL}/mcp/result/status`);
                 if (statusResponse.ok) {
@@ -133,7 +138,7 @@ export class SummonBattleAPI {
                 }
             }
             console.log('MCPポーリングタイムアウト');
-            throw new Error('MCP結果のポーリングがタイムアウトしました');
+            throw new Error(MCP_CONFIG.TIMEOUT_MESSAGE);
         }
         catch (error) {
             console.error('MCP結果ポーリングエラー:', error);

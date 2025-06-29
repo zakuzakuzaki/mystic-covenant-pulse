@@ -5,8 +5,7 @@ import {
     MCPResult, 
     BattleResult, 
     AttackResultData, 
-    ThreeJSViewer,
-    AttackResult
+    ThreeJSViewer
 } from './types.js';
 import { api } from './api.js';
 
@@ -39,6 +38,7 @@ export class SummonBattleGame {
     private currentTurnDisplay!: HTMLElement;
     
     private winnerDisplay!: HTMLElement;
+    private winnerViewer!: HTMLElement;
     private finishComment!: HTMLElement;
     private restartBtn!: HTMLButtonElement;
     
@@ -62,8 +62,73 @@ export class SummonBattleGame {
         
         this.initializeElements();
         this.bindEvents();
+        this.updateAttackButtonState();
         this.init3DViewers();
         this.loadSummonsList();
+    }
+
+    private async showWinnerModel(winner: CreatureStats): Promise<void> {
+        try {
+            // 勝者の3Dビューアーを初期化
+            const winnerViewer = new (globalThis as any).ThreeJSViewer('winnerViewer');
+            
+            // 勝者のモデルファイルパスを取得
+            const winnerCreatureId = this.gameState.summonIds[1] && this.gameState.creatures[1]?.name === winner.name 
+                ? this.gameState.summonIds[1] 
+                : this.gameState.summonIds[2];
+            
+            if (winnerCreatureId) {
+                const modelPath = `/assets/${winnerCreatureId}/model.stl`;
+                console.log(`勝者のモデルを読み込み中: ${modelPath}`);
+                
+                await winnerViewer.loadSTL(modelPath);
+                
+                // 勝者の色を金色に
+                winnerViewer.setModelColor(0xffd700);
+                
+                // 勝利の舞を開始
+                this.startVictoryDance(winnerViewer);
+                
+                console.log('勝者のモデル表示完了');
+            }
+        } catch (error) {
+            console.error('勝者モデル表示エラー:', error);
+        }
+    }
+
+    private startVictoryDance(viewer: any): void {
+        if (!viewer.model) return;
+        
+        const originalY = viewer.model.position.y;
+        const startTime = Date.now();
+        
+        const dance = (): void => {
+            if (!viewer.model) return;
+            
+            const elapsed = (Date.now() - startTime) / 1000;
+            
+            // 上下に揺れる動き
+            const bounce = Math.sin(elapsed * 4) * 2;
+            viewer.model.position.y = originalY + bounce;
+            
+            // 回転する動き
+            viewer.model.rotation.y = elapsed * 2;
+            
+            // キラキラ効果（スケーリング）
+            const sparkle = 1 + Math.sin(elapsed * 6) * 0.1;
+            viewer.model.scale.setScalar(viewer.model.scale.x * sparkle / (viewer.model.scale.x || 1));
+            
+            // 5秒間踊り続ける
+            if (elapsed < 5) {
+                requestAnimationFrame(dance);
+            } else {
+                // 元の位置と回転に戻す
+                viewer.model.position.y = originalY;
+                viewer.model.rotation.y = 0;
+            }
+        };
+        
+        dance();
     }
 
     private initializeElements(): void {
@@ -93,6 +158,7 @@ export class SummonBattleGame {
         
         // 結果要素
         this.winnerDisplay = this.getElementById('winner');
+        this.winnerViewer = this.getElementById('winnerViewer');
         this.finishComment = this.getElementById('finishComment');
         this.restartBtn = this.getElementById('restartBtn') as HTMLButtonElement;
         
@@ -119,6 +185,7 @@ export class SummonBattleGame {
         this.summon2Select.addEventListener('change', () => this.onSummonSelect(2));
         this.startBattleBtn.addEventListener('click', () => this.startBattle());
         this.attackBtn.addEventListener('click', () => this.performAttack());
+        this.attackInput.addEventListener('input', () => this.updateAttackButtonState());
         this.restartBtn.addEventListener('click', () => this.restart());
         
         // Enterキーでの送信
@@ -143,12 +210,39 @@ export class SummonBattleGame {
     }
 
     private showLoading(message: string): void {
-        this.loadingMessage.textContent = message;
-        this.loading.classList.remove('hidden');
+        // ローディング表示を削除し、代わりにUI要素をdisabledにする
+        this.attackInput.disabled = true;
+        this.attackBtn.disabled = true;
+        this.attackBtn.textContent = message;
     }
 
     private hideLoading(): void {
-        this.loading.classList.add('hidden');
+        // UI要素を有効化
+        this.attackInput.disabled = false;
+        this.attackBtn.disabled = false;
+        this.attackBtn.textContent = '攻撃';
+    }
+
+    private showPollingProgress(attempt: number, maxAttempts: number): void {
+        const pollingProgress = document.getElementById('pollingProgress')!;
+        const progressFill = document.getElementById('progressFill')!;
+        const pollingCount = document.getElementById('pollingCount')!;
+        
+        pollingProgress.classList.remove('hidden');
+        
+        const percentage = (attempt / maxAttempts) * 100;
+        progressFill.style.width = `${percentage}%`;
+        pollingCount.textContent = attempt.toString();
+    }
+
+    private hidePollingProgress(): void {
+        const pollingProgress = document.getElementById('pollingProgress')!;
+        pollingProgress.classList.add('hidden');
+    }
+
+    private updateAttackButtonState(): void {
+        const hasText = this.attackInput.value.trim().length > 0;
+        this.attackBtn.disabled = !hasText;
     }
 
     private async loadSummonsList(): Promise<void> {
@@ -368,8 +462,12 @@ export class SummonBattleGame {
 
     private updateHP(creatureNumber: 1 | 2, currentHP: number, maxHP: number): void {
         const hpEl = this.getElementById(`creature${creatureNumber}HP`) as HTMLElement;
+        const hpTextEl = this.getElementById(`creature${creatureNumber}HPText`) as HTMLElement;
         const percentage = (currentHP / maxHP) * 100;
         hpEl.style.width = `${Math.max(0, percentage)}%`;
+        
+        // HP数値を更新
+        hpTextEl.textContent = `${currentHP}/${maxHP}`;
         
         if (percentage > 60) {
             hpEl.style.background = 'linear-gradient(90deg, #4CAF50, #81C784)';
@@ -400,7 +498,7 @@ export class SummonBattleGame {
         }
         
         this.attackBtn.disabled = true;
-        this.showLoading('Claude Desktopで攻撃処理中...');
+        this.showLoading('攻撃処理を開始しています...');
         
         try {
             const attacker = this.gameState.creatures[this.gameState.currentTurn];
@@ -409,22 +507,28 @@ export class SummonBattleGame {
             if (!attacker || !defender) return;
             
             this.addBattleLog(`${attacker.name}が「${attackPrompt}」で攻撃を開始！`);
+            this.showLoading('Claude Desktopに攻撃プロンプトを送信中...');
             
             const attackResult = await api.attack(attackPrompt, attacker, defender);
             
             if (attackResult && attackResult.result) {
                 this.addBattleLog('Claude Desktopに攻撃プロンプトを送信しました');
                 this.addBattleLog('Claude Desktopからの結果を待機中...');
+                this.showLoading('Claude Desktopからの攻撃結果を待機中...');
                 
-                const mcpResult = await api.pollMCPResult(30, 1000);
+                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
+                    this.showPollingProgress(attempt, maxAttempts);
+                });
                 
                 if (mcpResult && (mcpResult.parsed_data || mcpResult.data)) {
                     console.log('MCP結果を使用して攻撃を処理します');
+                    this.showLoading('攻撃結果を処理中...');
                     await this.processMCPAttackResult(mcpResult, attackPrompt);
                 } else {
                     console.log('MCP結果が取得できないため、攻撃APIの仮結果を使用します');
                     this.addBattleLog('Claude Desktopからの応答がタイムアウトしました');
                     this.addBattleLog('攻撃APIの結果で続行します...');
+                    this.showLoading('フォールバック攻撃処理中...');
                     
                     await this.processFallbackAttackResult(attackResult.result, attackPrompt);
                 }
@@ -448,6 +552,7 @@ export class SummonBattleGame {
         this.attackInput.value = '';
         this.attackBtn.disabled = false;
         this.hideLoading();
+        this.hidePollingProgress();
     }
 
     private async processMCPAttackResult(mcpResult: MCPResult, attackPrompt: string): Promise<void> {
@@ -632,11 +737,11 @@ export class SummonBattleGame {
         }
     }
 
-    private async processFallbackAttackResult(attackResult: AttackResult, attackPrompt: string): Promise<void> {
+    private async processFallbackAttackResult(attackResult: AttackResultData, attackPrompt: string): Promise<void> {
         try {
             console.log('攻撃API結果をフォールバック処理:', attackResult);
             
-            const damage = attackResult.damage || 0;
+            const damage = Math.abs(attackResult.defender.damage) || 0;
             const comment = attackResult.comment || `攻撃「${attackPrompt}」が発動！`;
             
             if (damage > 0) {
@@ -675,7 +780,7 @@ export class SummonBattleGame {
             const result = await api.attack(attackPrompt, attacker, defender);
             
             if (result && result.result) {
-                const damage = result.result.damage;
+                const damage = Math.abs(result.result.defender.damage);
                 const comment = result.result.comment;
                 
                 const defenderNumber: 1 | 2 = this.gameState.currentTurn === 1 ? 2 : 1;
@@ -737,12 +842,62 @@ export class SummonBattleGame {
         const winner = this.gameState.creatures[winnerNumber];
         if (!winner) return;
         
-        this.showLoading('決着処理中...');
+        this.showLoading('決着処理を開始しています...');
         
         try {
+            // 1. 決着コメント生成をClaude Desktopに送信
             const finishResult = await api.finishBattle(winner);
-            const comment = finishResult?.comment || '勝利！';
+            if (!finishResult?.success) {
+                throw new Error('決着処理の開始に失敗しました');
+            }
             
+            this.addBattleLog('決着コメントを生成中...');
+            this.showLoading('Claude Desktopで決着コメントを生成中...');
+            
+            // 2. MCPポーリングで結果を取得
+            try {
+                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
+                    this.showPollingProgress(attempt, maxAttempts);
+                });
+                // result_typeが'finish_comment'または決着コメントらしいデータかチェック
+                if (mcpResult && (
+                    mcpResult.result_type === 'finish_comment' || 
+                    (mcpResult.data && mcpResult.data.comment && !mcpResult.data.attacker)
+                )) {
+                    this.showLoading('決着コメントを処理中...');
+                    await this.processFinishResult(mcpResult, winner);
+                } else {
+                    throw new Error('決着コメントの取得に失敗しました');
+                }
+            } catch (mcpError) {
+                console.error('MCP決着結果取得エラー:', mcpError);
+                this.showLoading('フォールバック処理中...');
+                // フォールバック処理
+                await this.processFallbackFinishResult(winner);
+            }
+            
+        } catch (error) {
+            console.error('決着処理エラー:', error);
+            // フォールバック処理
+            await this.processFallbackFinishResult(winner);
+        }
+        
+        this.hideLoading();
+    }
+
+    private async processFinishResult(mcpResult: MCPResult, winner: CreatureStats): Promise<void> {
+        try {
+            console.log('MCP決着結果を処理:', mcpResult);
+            
+            // MCPの結果からコメントを取得
+            let comment = '勝利！';
+            if (mcpResult.parsed_data?.raw_text) {
+                comment = mcpResult.parsed_data.raw_text;
+            } else if (mcpResult.data && typeof mcpResult.data === 'object' && mcpResult.data.comment) {
+                comment = mcpResult.data.comment;
+            }
+            
+            // 画面を決着画面に切り替え
             this.battlePhase.classList.add('hidden');
             this.resultPhase.classList.remove('hidden');
             this.gamePhase.textContent = 'バトル終了';
@@ -750,12 +905,41 @@ export class SummonBattleGame {
             this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
             this.finishComment.textContent = `「${comment}」`;
             
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
+            
+            this.addBattleLog(`決着！${winner.name}の勝利: 「${comment}」`);
+            
         } catch (error) {
-            console.error('決着処理エラー:', error);
-            this.finishComment.textContent = '勝利！';
+            console.error('決着結果処理エラー:', error);
+            await this.processFallbackFinishResult(winner);
         }
-        
-        this.hideLoading();
+    }
+
+    private async processFallbackFinishResult(winner: CreatureStats): Promise<void> {
+        try {
+            console.log('フォールバック決着処理:', winner);
+            
+            // デフォルトコメント
+            const defaultComment = '勝利！';
+            
+            // 画面を決着画面に切り替え
+            this.battlePhase.classList.add('hidden');
+            this.resultPhase.classList.remove('hidden');
+            this.gamePhase.textContent = 'バトル終了';
+            
+            this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
+            this.finishComment.textContent = `「${defaultComment}」`;
+            
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
+            
+            this.addBattleLog(`決着！${winner.name}の勝利`);
+            
+        } catch (error) {
+            console.error('フォールバック決着処理エラー:', error);
+            this.addBattleLog('決着処理でエラーが発生しました');
+        }
     }
 
     private restart(): void {
@@ -776,9 +960,14 @@ export class SummonBattleGame {
         this.attackInput.value = '';
         this.battleLog.innerHTML = '';
         
+        // プルダウンリストをリセット
+        this.summon1Select.value = '';
+        this.summon2Select.value = '';
+        
         this.summon1Btn.disabled = false;
         this.summon2Btn.disabled = false;
         this.startBattleBtn.disabled = true;
+        this.updateAttackButtonState();
         
         this.summon1Status.innerHTML = '';
         this.summon2Status.innerHTML = '';
