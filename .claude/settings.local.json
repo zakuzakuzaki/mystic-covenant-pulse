@@ -9,7 +9,9 @@
       "Bash(find:*)",
       "Bash(curl:*)",
       "Bash(touch:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(npm run build:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
