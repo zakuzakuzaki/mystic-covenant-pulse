@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
-# Start development server with hot-reload
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Start production server (no hot-reload)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 # Alternative startup
 python run.py
 

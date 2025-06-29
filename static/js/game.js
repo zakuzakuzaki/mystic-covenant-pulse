@@ -620,7 +620,9 @@ export class SummonBattleGame {
             // 2. MCPポーリングで結果を取得
             try {
                 const mcpResult = await api.pollMCPResult();
-                if (mcpResult && mcpResult.result_type === 'finish_comment') {
+                // result_typeが'finish_comment'または決着コメントらしいデータかチェック
+                if (mcpResult && (mcpResult.result_type === 'finish_comment' ||
+                    (mcpResult.data && mcpResult.data.comment && !mcpResult.data.attacker))) {
                     this.showLoading('決着コメントを処理中...');
                     await this.processFinishResult(mcpResult, winner);
                 }

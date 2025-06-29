@@ -26,7 +26,8 @@ export class ThreeJSViewer {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
         this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-        this.camera.position.set(0, 0, 50);
+        this.camera.position.set(0, -30, 0); // Y軸方向から見る（下から上へ）
+        this.camera.lookAt(0, 0, 0); // 原点を見る
         // レンダラーの作成
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(width, height);

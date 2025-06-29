@@ -32,8 +32,14 @@ class ClaudeDesktopClient:
         except Exception as e:
             raise ClaudeDesktopError(f"予期しないエラーが発生しました: {e}")
     
-    def send_to_claude_desktop(self, message: str, x: int = None, y: int = None):
+    def send_to_claude_desktop(self, message: str, x: int = None, y: int = None, restore_mouse: bool = True):
         """Claude Desktopにメッセージを送信"""
+        # 現在のマウス座標を記憶
+        original_position = None
+        if restore_mouse:
+            original_position = pyautogui.position()
+            print(f"マウス座標を記憶: {original_position}")
+        
         try:
             if x is not None and y is not None:
                 pyautogui.click(x, y)
@@ -50,5 +56,41 @@ class ClaudeDesktopClient:
             # Enterキーを押して送信
             pyautogui.press('enter')
             
+            # Enterキー押下後に元の座標に戻す
+            if restore_mouse and original_position:
+                time.sleep(0.2)  # 送信完了を待つ
+                pyautogui.moveTo(original_position.x, original_position.y)
+                print(f"マウス座標を元に戻しました: {original_position}")
+            
         except Exception as e:
+            # エラー時でも座標を復元
+            if restore_mouse and original_position:
+                pyautogui.moveTo(original_position.x, original_position.y)
+                print(f"エラー時にマウス座標を復元: {original_position}")
             raise ClaudeDesktopError(f"Claude Desktopへのメッセージ送信に失敗しました: {e}")
+    
+    def execute_with_mouse_restore(self, action_func, wait_for_enter: bool = False):
+        """
+        マウス座標を記憶し、アクション実行後に元の位置に戻す
+        
+        Args:
+            action_func: 実行する処理の関数
+            wait_for_enter: Enterキー入力まで待機するかどうか
+        """
+        # 現在のマウス座標を記憶
+        original_position = pyautogui.position()
+        print(f"現在のマウス座標を記憶: {original_position}")
+        
+        try:
+            # 指定されたアクションを実行
+            action_func()
+            
+            if wait_for_enter:
+                # Enterキーの入力を待機
+                print("Enterキーを押すと元の座標に戻ります...")
+                input()  # Enterキー待ち
+            
+        finally:
+            # 元の座標に戻す
+            pyautogui.moveTo(original_position.x, original_position.y)
+            print(f"マウス座標を元に戻しました: {original_position}")
