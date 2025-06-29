@@ -3,47 +3,28 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 
-from .models import ClaudeResult, ClaudeResultResponse, AttackResultData, AttackResultResponse
+from .models import ClaudeResult, ClaudeResultResponse, AttackResultData, AttackResultResponse, FinishCommentData, FinishCommentResponse
 from ..services.mcp_manager import mcp_manager
 
 router = APIRouter(tags=["MCP"])
-
-@router.post("/mcp/results", response_model=ClaudeResultResponse, operation_id='save_mcp_result')
-async def save_mcp_result(request: ClaudeResult):
-    """MCPエージェントの結果を保存"""
-    try:
-        execution_id = mcp_manager.generate_execution_id()
-        result = mcp_manager.save_result(execution_id, request.result)
-        
-        return ClaudeResultResponse(
-            success=True,
-            execution_id=result["execution_id"],
-            result_type=result["result_type"],
-            timestamp=result["timestamp"],
-            message="MCP結果を正常に保存しました",
-            processing_status="completed"
-        )
-    except Exception as e:
-        return ClaudeResultResponse(
-            success=False,
-            execution_id="unknown",
-            result_type="unknown",
-            timestamp="",
-            message=f"MCP結果の保存に失敗しました: {str(e)}",
-            processing_status="error"
-        )
 
 @router.post("/mcp/results/attack", response_model=AttackResultResponse, operation_id='save_attack_result')
 async def save_attack_result(request: AttackResultData):
     """攻撃結果を保存"""
     try:
         execution_id = mcp_manager.generate_execution_id()
-        result = mcp_manager.save_result(execution_id, request.model_dump_json())
+        
+        # リクエストデータにresult_typeが含まれていない場合はデフォルト値を設定
+        attack_data = request.model_dump()
+        if "result_type" not in attack_data:
+            attack_data["result_type"] = "attack"
+        
+        result = mcp_manager.save_result(execution_id, attack_data)
         
         return AttackResultResponse(
             success=True,
             execution_id=result["execution_id"],
-            result_type="attack",
+            result_type=result["result_type"],  # Claude Desktopから送信された値を使用
             timestamp=result["timestamp"],
             message="攻撃結果を正常に保存しました",
             processing_status="completed"
@@ -52,9 +33,40 @@ async def save_attack_result(request: AttackResultData):
         return AttackResultResponse(
             success=False,
             execution_id="unknown",
-            result_type="attack",
+            result_type="unknown",
             timestamp="",
             message=f"攻撃結果の保存に失敗しました: {str(e)}",
+            processing_status="error"
+        )
+
+@router.post("/mcp/results/finish", response_model=FinishCommentResponse, operation_id='save_finish_result')
+async def save_finish_result(request: FinishCommentData):
+    """決着コメント結果を保存"""
+    try:
+        execution_id = mcp_manager.generate_execution_id()
+        
+        # リクエストデータにresult_typeが含まれていない場合はデフォルト値を設定
+        finish_data = request.model_dump()
+        if "result_type" not in finish_data:
+            finish_data["result_type"] = "finish_comment"
+        
+        result = mcp_manager.save_result(execution_id, finish_data)
+        
+        return FinishCommentResponse(
+            success=True,
+            execution_id=result["execution_id"],
+            result_type=result["result_type"],  # Claude Desktopから送信された値を使用
+            timestamp=result["timestamp"],
+            message="決着コメント結果を正常に保存しました",
+            processing_status="completed"
+        )
+    except Exception as e:
+        return FinishCommentResponse(
+            success=False,
+            execution_id="unknown",
+            result_type="unknown",
+            timestamp="",
+            message=f"決着コメント結果の保存に失敗しました: {str(e)}",
             processing_status="error"
         )
 

@@ -12,7 +12,9 @@
       "Bash(rg:*)",
       "Bash(npm run build:*)",
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ],
     "deny": []
   }

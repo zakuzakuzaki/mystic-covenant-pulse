@@ -24,6 +24,10 @@ npm run clean                  # Clean compiled JS files
 # Setup Claude Desktop automation coordinates (required before first use)
 python scripts/setup_claude.py
 
+# Test MCP result submission (for debugging)
+python scripts/send_attack_result.py "炎の剣が敵を貫く！" -50
+python scripts/send_finish_comment.py "勝利の光よ、全てを照らせ！"
+
 # Run tests (framework exists but needs implementation)
 pytest tests/
 
@@ -82,7 +86,9 @@ flake8 app/                    # Lint Python code
 - **Real-time Processing**: Frontend polls `/api/mcp/result/status` and `/api/mcp/result` for live battle results
 - **Type Safety**: Structured data models (`ClaudeResultData`, `BattleResult`, `AttackResultData`) with automatic parsing
 - **Endpoints**:
-  - `POST /api/mcp/results` - Save Claude Desktop results
+  - `POST /api/mcp/results` - Save Claude Desktop results (generic)
+  - `POST /api/mcp/results/attack` - Save attack results specifically
+  - `POST /api/mcp/results/finish` - Save finish comment results specifically
   - `GET /api/mcp/result` - Retrieve and consume queued results  
   - `GET /api/mcp/result/status` - Check queue status
 

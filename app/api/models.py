@@ -140,6 +140,19 @@ class AttackResultResponse(BaseModel):
     message: str = Field(..., description="処理メッセージ")
     processing_status: str = Field(..., description="処理ステータス")
 
+class FinishCommentData(BaseModel):
+    """決着コメントデータ"""
+    comment: str = Field(..., description="決着時のコメント")
+
+class FinishCommentResponse(BaseModel):
+    """決着コメント保存のレスポンス"""
+    success: bool = Field(..., description="処理成功フラグ")
+    execution_id: str = Field(..., description="実行UUID")
+    result_type: str = Field(..., description="結果タイプ")
+    timestamp: str = Field(..., description="処理時刻")
+    message: str = Field(..., description="処理メッセージ")
+    processing_status: str = Field(..., description="処理ステータス")
+
 class ClaudeResultResponse(BaseModel):
     """Claude結果保存のレスポンス"""
     success: bool = Field(..., description="処理成功フラグ")

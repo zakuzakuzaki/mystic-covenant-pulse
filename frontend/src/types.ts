@@ -37,7 +37,8 @@ export interface AttackResponse {
 }
 
 export interface FinishResponse {
-    comment: string;
+    success: boolean;
+    message: string;
 }
 
 export interface BattleAction {

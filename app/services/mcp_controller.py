@@ -134,6 +134,8 @@ class MCPController:
                 return self._parse_creature_generation(data)
             elif result_type == "model_generation":
                 return self._parse_model_generation(data)
+            elif result_type == "finish_comment":
+                return self._parse_finish_comment(data)
             else:
                 # 生テキストまたは不明な形式
                 return ClaudeResultData(
@@ -243,5 +245,21 @@ class MCPController:
             print(f"モデル生成結果パース エラー: {e}")
             return ClaudeResultData(
                 result_type="model_generation",
+                raw_text=json.dumps(data)
+            )
+    
+    def _parse_finish_comment(self, data: Dict[str, Any]) -> ClaudeResultData:
+        """決着コメント結果をパースする"""
+        try:
+            comment = data.get("comment", "勝利！")
+            
+            return ClaudeResultData(
+                result_type="finish_comment",
+                raw_text=comment
+            )
+        except Exception as e:
+            print(f"決着コメント結果パース エラー: {e}")
+            return ClaudeResultData(
+                result_type="finish_comment",
                 raw_text=json.dumps(data)
             )

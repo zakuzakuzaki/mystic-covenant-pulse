@@ -52,13 +52,13 @@ class BattleController:
             print(f"攻撃処理エラー: {e}")
             return None
     
-    async def generate_finish_comment(self, winner: CreatureStats) -> Optional[str]:
-        """勝利時のコメントを生成する"""
+    async def generate_finish_comment(self, winner: CreatureStats) -> bool:
+        """勝利時のコメント生成をClaude Desktopに送信する（結果はMCPでポーリング）"""
         try:
             position = self.desktop_client.load_claude_position()
             if not position:
                 print("Claude Desktopの座標が設定されていません")
-                return None
+                return False
             
             x, y = position
             
@@ -72,12 +72,9 @@ class BattleController:
             # Claude Desktopにメッセージを送信
             self.desktop_client.send_to_claude_desktop(claude_prompt, x, y)
             
-            # レスポンス待機
-            await asyncio.sleep(Timing.FINISH_RESPONSE_WAIT)
-            
-            # 仮の結果を返す
-            return Defaults.DEFAULT_FINISH_COMMENT
+            print(f"決着コメント生成プロンプトを送信しました: {winner.name}")
+            return True
             
         except Exception as e:
             print(f"決着コメント生成エラー: {e}")
-            return None
+            return False

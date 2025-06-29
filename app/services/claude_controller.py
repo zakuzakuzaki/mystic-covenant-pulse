@@ -25,8 +25,8 @@ class ClaudeController:
         """攻撃を処理する"""
         return await self.battle_controller.process_attack(attack_prompt, me, enemy)
     
-    async def generate_finish_comment(self, winner: CreatureStats) -> Optional[str]:
-        """勝利時のコメントを生成する"""
+    async def generate_finish_comment(self, winner: CreatureStats) -> bool:
+        """勝利時のコメント生成をClaude Desktopに送信する"""
         return await self.battle_controller.generate_finish_comment(winner)
     
     # MCP関連メソッド（MCPControllerに委譲）

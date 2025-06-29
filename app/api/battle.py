@@ -1,7 +1,7 @@
 """バトル関連API"""
 
 from fastapi import APIRouter, HTTPException, Query
-from .models import AttackRequest, AttackResponse, FinishRequest, FinishResponse, AttackResultData
+from .models import AttackRequest, AttackResponse, FinishRequest, AttackResultData
 from ..services.claude_controller import ClaudeController
 
 router = APIRouter(prefix="/battle", tags=["battle"])
@@ -26,15 +26,15 @@ async def attack(request: AttackRequest):
         print(f"攻撃処理エラー: {e}")
         raise HTTPException(status_code=500, detail="攻撃処理中にエラーが発生しました")
 
-@router.post("/finish", response_model=FinishResponse)
+@router.post("/finish")
 async def finish_battle(request: FinishRequest):
-    """勝負を決着する"""
+    """勝負を決着する（Claude Desktopに決着コメント生成を送信）"""
     try:
         claude_controller = ClaudeController()
-        comment = await claude_controller.generate_finish_comment(request.winner)
+        success = await claude_controller.generate_finish_comment(request.winner)
         
-        if comment:
-            return FinishResponse(comment=comment)
+        if success:
+            return {"success": True, "message": "決着コメント生成を開始しました"}
         else:
             raise HTTPException(status_code=500, detail="決着処理に失敗しました")
             

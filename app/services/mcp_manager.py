@@ -94,6 +94,10 @@ class MCPResultManager:
         
         # result_typeが存在しない場合は従来の判定処理
         if isinstance(data, dict):
+            # 決着コメントか判定
+            if "comment" in data and len(data) == 1:
+                return "finish_comment"
+            
             # 召喚獣データか判定
             if all(key in data for key in ["name", "hp", "specialMove", "description"]):
                 return "creature_data"
@@ -109,6 +113,10 @@ class MCPResultManager:
             # Blenderスクリプトか判定
             if "blender_script" in data or "python_code" in data:
                 return "blender_script"
+            
+            # より精密な攻撃結果判定
+            if "comment" in data and ("attacker" in data or "defender" in data):
+                return "attack"
             
             return "general_json"
     
