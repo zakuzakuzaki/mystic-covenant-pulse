@@ -39,6 +39,28 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# TypeScript compiled files
+*.js.map
+*.d.ts.map
+static/js/*.js
+static/js/*.d.ts
+static/js/*.js.map
+static/js/*.d.ts.map
+
+# Frontend build files
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/out/
+
 # Project specific - 生成されたファイル
 assets/*
 config/claude_desktop_config.json
@@ -55,3 +77,53 @@ config/claude_desktop_config.json
 # Temporary files
 *.tmp
 *.temp
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

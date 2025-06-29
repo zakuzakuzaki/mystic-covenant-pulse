@@ -1,0 +1,19 @@
+{
+  "name": "mystic-covenant-pulse-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for AI-powered summoning creature battle game",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "tsc --watch",
+    "clean": "rimraf ../static/js/*.js ../static/js/*.map ../static/js/*.d.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/three": "^0.160.0",
+    "rimraf": "^5.0.0"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}

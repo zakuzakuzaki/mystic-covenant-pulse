@@ -14,7 +14,7 @@
 ### 前提条件
 
 - Python 3.8以上
-- Node.js (開発時のみ)
+- Node.js 16以上 (TypeScriptコンパイル用)
 - Claude Desktop (インストール済み)
 
 ### インストール
@@ -32,15 +32,29 @@ source .env/bin/activate
 
 # 依存関係のインストール
 pip install -r requirements.txt
-
 ```
 
-2. Claude Desktopの座標設定:
+2. フロントエンド（TypeScript）の依存関係とビルド:
+```bash
+# frontendディレクトリに移動
+cd frontend
+
+# Node.js依存関係のインストール
+npm install
+
+# TypeScriptをJavaScriptにコンパイル
+npm run build
+
+# 開発時はwatchモードでビルド（自動再コンパイル）
+npm run watch
+```
+
+3. Claude Desktopの座標設定:
 ```bash
 python scripts/setup_claude.py
 ```
 
-3. 設定ファイルの確認（必要に応じて編集）:
+4. 設定ファイルの確認（必要に応じて編集）:
 ```bash
 # config/app_config.json を編集してサーバー設定などを変更
 ```
@@ -75,26 +89,41 @@ mystic-covenant-pulse/
 │   └── services/         # ビジネスロジック
 │       ├── __init__.py
 │       ├── claude_controller.py  # Claude Desktop制御
-│       └── file_manager.py       # ファイル管理
+│       ├── file_manager.py       # ファイル管理
+│       └── mcp_manager.py        # MCP結果管理
+├── frontend/              # TypeScriptフロントエンド開発環境
+│   ├── package.json      # Node.js依存関係
+│   ├── tsconfig.json     # TypeScript設定
+│   └── src/              # TypeScriptソースコード
+│       ├── types.ts      # 型定義
+│       ├── api.ts        # API呼び出しクラス
+│       ├── 3d-viewer.ts  # Three.js 3Dビューアー
+│       ├── game.ts       # ゲームメインロジック
+│       └── main.ts       # エントリーポイント
 ├── scripts/              # スクリプト類
 │   └── setup_claude.py  # Claude Desktop設定
-├── static/                # フロントエンド
-│   ├── index.html         # メインページ
-│   ├── css/style.css      # スタイルシート
-│   └── js/               # JavaScript
-├── assets/                # 生成されたモデル保存場所
-│   └── {summonId}/        # 召喚獣ごとのディレクトリ
-│       ├── model.stl      # 3Dモデルファイル
-│       └── status.json    # ステータス情報
-├── config/                # 設定ファイル
-│   ├── app_config.json    # アプリケーション設定
+├── static/               # フロントエンド（コンパイル済み）
+│   ├── index.html        # メインページ
+│   ├── css/style.css     # スタイルシート
+│   └── js/               # TypeScriptコンパイル済みJavaScript
+│       ├── main.js       # エントリーポイント
+│       ├── api.js        # API呼び出し
+│       ├── 3d-viewer.js  # 3Dビューアー
+│       └── game.js       # ゲームロジック
+├── assets/               # 生成されたモデル保存場所
+│   ├── {summonId}/       # 召喚獣ごとのディレクトリ
+│   │   ├── model.stl     # 3Dモデルファイル
+│   │   └── status.json   # ステータス情報
+│   └── mcp_results/      # MCP結果ファイル
+├── config/               # 設定ファイル
+│   ├── app_config.json   # アプリケーション設定
 │   └── claude_desktop_config.json  # Claude Desktop座標設定
-├── examples/              # サンプルコード
-├── tests/                # テスト
+├── examples/             # サンプルコード
+├── tests/               # テスト
 ├── .gitignore
-├── requirements.txt      # 本番依存関係
-├── requirements-dev.txt  # 開発依存関係
-├── run.py               # アプリケーション起動スクリプト
+├── requirements.txt     # 本番依存関係
+├── requirements-dev.txt # 開発依存関係
+├── run.py              # アプリケーション起動スクリプト
 └── README.md
 ```
 
@@ -164,6 +193,37 @@ Content-Type: application/json
 
 ## 🛠️ 開発
 
+### フロントエンド開発
+
+TypeScriptで開発し、JavaScriptにコンパイルして使用します。
+
+```bash
+# frontendディレクトリでの開発
+cd frontend
+
+# 依存関係のインストール
+npm install
+
+# 一回限りのビルド
+npm run build
+
+# 開発時のwatch（ファイル変更時に自動ビルド）
+npm run watch
+```
+
+### TypeScript設定
+
+- **ターゲット**: ES2020
+- **モジュール**: ESNext（ES6 modules）
+- **出力先**: `../static/js/`
+- **型チェック**: 厳密モード有効
+
+### 型安全性
+
+- 全てのAPI呼び出しに型定義
+- Three.js用の型定義を使用
+- 厳密なNull/Undefinedチェック
+
 ### テスト実行
 
 ```bash
@@ -180,11 +240,18 @@ flake8 src/
 
 ## 📝 注意事項
 
+### バックエンド
 - Claude Desktopが起動している必要があります
 - 初回使用時は`examples/py2claude.py`でClaude Desktopの座標を設定してください
 - STLファイルの生成には時間がかかる場合があります
 - 生成されたモデルは`assets/{summonId}/`ディレクトリに保存されます
-- staticディレクトリは静的ファイル専用で、動的生成ファイルは含まれません
+
+### フロントエンド
+- **重要**: フロントエンドを変更する場合は`frontend/src/`のTypeScriptファイルを編集してください
+- `static/js/`のJavaScriptファイルは自動生成されるため直接編集しないでください
+- フロントエンド変更後は必ず`npm run build`でコンパイルしてください
+- 開発時は`npm run watch`で自動ビルドを有効にすることを推奨します
+- Three.jsはCDNから読み込まれ、ES6モジュールとして使用されます
 
 ## 💾 ファイル管理
 
@@ -209,8 +276,19 @@ config/
 
 ## 🎯 今後の改善点
 
+### バックエンド
 - [ ] リアルタイムでのClaude Desktopレスポンス監視
 - [ ] より詳細な3Dモデル生成プロンプト
-- [ ] バトルアニメーション効果
 - [ ] セーブ/ロード機能
 - [ ] マルチプレイヤー対応
+
+### フロントエンド
+- [ ] バトルアニメーション効果
+- [ ] TypeScriptのunit testing追加
+- [ ] PWA対応
+- [ ] レスポンシブデザイン改善
+
+### 技術改善
+- [ ] WebSocket によるリアルタイム通信
+- [ ] Service Worker によるオフライン対応
+- [ ] Webpack などのバンドラー導入
