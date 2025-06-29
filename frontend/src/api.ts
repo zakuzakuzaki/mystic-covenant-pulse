@@ -132,12 +132,17 @@ export class SummonBattleAPI implements ISummonBattleAPI {
     /**
      * MCP結果をポーリング
      */
-    async pollMCPResult(maxAttempts: number = MCP_CONFIG.MAX_ATTEMPTS, interval: number = MCP_CONFIG.POLL_INTERVAL): Promise<MCPResult | null> {
+    async pollMCPResult(maxAttempts: number = MCP_CONFIG.MAX_ATTEMPTS, interval: number = MCP_CONFIG.POLL_INTERVAL, onProgress?: (attempt: number, maxAttempts: number) => void): Promise<MCPResult | null> {
         try {
             console.log(`MCPポーリング開始: 最大${maxAttempts}回試行、${interval}ms間隔`);
             
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
                 console.log(`MCPポーリング試行 ${attempt + 1}/${maxAttempts}`);
+                
+                // プログレスコールバックを呼び出し
+                if (onProgress) {
+                    onProgress(attempt + 1, maxAttempts);
+                }
                 
                 // MCP結果の状態確認
                 const statusResponse = await fetch(`${this.baseURL}/mcp/result/status`);

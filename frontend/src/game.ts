@@ -38,6 +38,7 @@ export class SummonBattleGame {
     private currentTurnDisplay!: HTMLElement;
     
     private winnerDisplay!: HTMLElement;
+    private winnerViewer!: HTMLElement;
     private finishComment!: HTMLElement;
     private restartBtn!: HTMLButtonElement;
     
@@ -61,8 +62,73 @@ export class SummonBattleGame {
         
         this.initializeElements();
         this.bindEvents();
+        this.updateAttackButtonState();
         this.init3DViewers();
         this.loadSummonsList();
+    }
+
+    private async showWinnerModel(winner: CreatureStats): Promise<void> {
+        try {
+            // 勝者の3Dビューアーを初期化
+            const winnerViewer = new (globalThis as any).ThreeJSViewer('winnerViewer');
+            
+            // 勝者のモデルファイルパスを取得
+            const winnerCreatureId = this.gameState.summonIds[1] && this.gameState.creatures[1]?.name === winner.name 
+                ? this.gameState.summonIds[1] 
+                : this.gameState.summonIds[2];
+            
+            if (winnerCreatureId) {
+                const modelPath = `/assets/${winnerCreatureId}/model.stl`;
+                console.log(`勝者のモデルを読み込み中: ${modelPath}`);
+                
+                await winnerViewer.loadSTL(modelPath);
+                
+                // 勝者の色を金色に
+                winnerViewer.setModelColor(0xffd700);
+                
+                // 勝利の舞を開始
+                this.startVictoryDance(winnerViewer);
+                
+                console.log('勝者のモデル表示完了');
+            }
+        } catch (error) {
+            console.error('勝者モデル表示エラー:', error);
+        }
+    }
+
+    private startVictoryDance(viewer: any): void {
+        if (!viewer.model) return;
+        
+        const originalY = viewer.model.position.y;
+        const startTime = Date.now();
+        
+        const dance = (): void => {
+            if (!viewer.model) return;
+            
+            const elapsed = (Date.now() - startTime) / 1000;
+            
+            // 上下に揺れる動き
+            const bounce = Math.sin(elapsed * 4) * 2;
+            viewer.model.position.y = originalY + bounce;
+            
+            // 回転する動き
+            viewer.model.rotation.y = elapsed * 2;
+            
+            // キラキラ効果（スケーリング）
+            const sparkle = 1 + Math.sin(elapsed * 6) * 0.1;
+            viewer.model.scale.setScalar(viewer.model.scale.x * sparkle / (viewer.model.scale.x || 1));
+            
+            // 5秒間踊り続ける
+            if (elapsed < 5) {
+                requestAnimationFrame(dance);
+            } else {
+                // 元の位置と回転に戻す
+                viewer.model.position.y = originalY;
+                viewer.model.rotation.y = 0;
+            }
+        };
+        
+        dance();
     }
 
     private initializeElements(): void {
@@ -92,6 +158,7 @@ export class SummonBattleGame {
         
         // 結果要素
         this.winnerDisplay = this.getElementById('winner');
+        this.winnerViewer = this.getElementById('winnerViewer');
         this.finishComment = this.getElementById('finishComment');
         this.restartBtn = this.getElementById('restartBtn') as HTMLButtonElement;
         
@@ -118,6 +185,7 @@ export class SummonBattleGame {
         this.summon2Select.addEventListener('change', () => this.onSummonSelect(2));
         this.startBattleBtn.addEventListener('click', () => this.startBattle());
         this.attackBtn.addEventListener('click', () => this.performAttack());
+        this.attackInput.addEventListener('input', () => this.updateAttackButtonState());
         this.restartBtn.addEventListener('click', () => this.restart());
         
         // Enterキーでの送信
@@ -142,12 +210,39 @@ export class SummonBattleGame {
     }
 
     private showLoading(message: string): void {
-        this.loadingMessage.textContent = message;
-        this.loading.classList.remove('hidden');
+        // ローディング表示を削除し、代わりにUI要素をdisabledにする
+        this.attackInput.disabled = true;
+        this.attackBtn.disabled = true;
+        this.attackBtn.textContent = message;
     }
 
     private hideLoading(): void {
-        this.loading.classList.add('hidden');
+        // UI要素を有効化
+        this.attackInput.disabled = false;
+        this.attackBtn.disabled = false;
+        this.attackBtn.textContent = '攻撃';
+    }
+
+    private showPollingProgress(attempt: number, maxAttempts: number): void {
+        const pollingProgress = document.getElementById('pollingProgress')!;
+        const progressFill = document.getElementById('progressFill')!;
+        const pollingCount = document.getElementById('pollingCount')!;
+        
+        pollingProgress.classList.remove('hidden');
+        
+        const percentage = (attempt / maxAttempts) * 100;
+        progressFill.style.width = `${percentage}%`;
+        pollingCount.textContent = attempt.toString();
+    }
+
+    private hidePollingProgress(): void {
+        const pollingProgress = document.getElementById('pollingProgress')!;
+        pollingProgress.classList.add('hidden');
+    }
+
+    private updateAttackButtonState(): void {
+        const hasText = this.attackInput.value.trim().length > 0;
+        this.attackBtn.disabled = !hasText;
     }
 
     private async loadSummonsList(): Promise<void> {
@@ -367,8 +462,12 @@ export class SummonBattleGame {
 
     private updateHP(creatureNumber: 1 | 2, currentHP: number, maxHP: number): void {
         const hpEl = this.getElementById(`creature${creatureNumber}HP`) as HTMLElement;
+        const hpTextEl = this.getElementById(`creature${creatureNumber}HPText`) as HTMLElement;
         const percentage = (currentHP / maxHP) * 100;
         hpEl.style.width = `${Math.max(0, percentage)}%`;
+        
+        // HP数値を更新
+        hpTextEl.textContent = `${currentHP}/${maxHP}`;
         
         if (percentage > 60) {
             hpEl.style.background = 'linear-gradient(90deg, #4CAF50, #81C784)';
@@ -417,7 +516,9 @@ export class SummonBattleGame {
                 this.addBattleLog('Claude Desktopからの結果を待機中...');
                 this.showLoading('Claude Desktopからの攻撃結果を待機中...');
                 
-                const mcpResult = await api.pollMCPResult(30, 1000);
+                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
+                    this.showPollingProgress(attempt, maxAttempts);
+                });
                 
                 if (mcpResult && (mcpResult.parsed_data || mcpResult.data)) {
                     console.log('MCP結果を使用して攻撃を処理します');
@@ -451,6 +552,7 @@ export class SummonBattleGame {
         this.attackInput.value = '';
         this.attackBtn.disabled = false;
         this.hideLoading();
+        this.hidePollingProgress();
     }
 
     private async processMCPAttackResult(mcpResult: MCPResult, attackPrompt: string): Promise<void> {
@@ -754,7 +856,9 @@ export class SummonBattleGame {
             
             // 2. MCPポーリングで結果を取得
             try {
-                const mcpResult = await api.pollMCPResult();
+                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
+                    this.showPollingProgress(attempt, maxAttempts);
+                });
                 // result_typeが'finish_comment'または決着コメントらしいデータかチェック
                 if (mcpResult && (
                     mcpResult.result_type === 'finish_comment' || 
@@ -801,6 +905,9 @@ export class SummonBattleGame {
             this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
             this.finishComment.textContent = `「${comment}」`;
             
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
+            
             this.addBattleLog(`決着！${winner.name}の勝利: 「${comment}」`);
             
         } catch (error) {
@@ -823,6 +930,9 @@ export class SummonBattleGame {
             
             this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
             this.finishComment.textContent = `「${defaultComment}」`;
+            
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
             
             this.addBattleLog(`決着！${winner.name}の勝利`);
             
@@ -850,9 +960,14 @@ export class SummonBattleGame {
         this.attackInput.value = '';
         this.battleLog.innerHTML = '';
         
+        // プルダウンリストをリセット
+        this.summon1Select.value = '';
+        this.summon2Select.value = '';
+        
         this.summon1Btn.disabled = false;
         this.summon2Btn.disabled = false;
         this.startBattleBtn.disabled = true;
+        this.updateAttackButtonState();
         
         this.summon1Status.innerHTML = '';
         this.summon2Status.innerHTML = '';

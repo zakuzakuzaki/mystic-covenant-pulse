@@ -18,8 +18,61 @@ export class SummonBattleGame {
         };
         this.initializeElements();
         this.bindEvents();
+        this.updateAttackButtonState();
         this.init3DViewers();
         this.loadSummonsList();
+    }
+    async showWinnerModel(winner) {
+        try {
+            // 勝者の3Dビューアーを初期化
+            const winnerViewer = new globalThis.ThreeJSViewer('winnerViewer');
+            // 勝者のモデルファイルパスを取得
+            const winnerCreatureId = this.gameState.summonIds[1] && this.gameState.creatures[1]?.name === winner.name
+                ? this.gameState.summonIds[1]
+                : this.gameState.summonIds[2];
+            if (winnerCreatureId) {
+                const modelPath = `/assets/${winnerCreatureId}/model.stl`;
+                console.log(`勝者のモデルを読み込み中: ${modelPath}`);
+                await winnerViewer.loadSTL(modelPath);
+                // 勝者の色を金色に
+                winnerViewer.setModelColor(0xffd700);
+                // 勝利の舞を開始
+                this.startVictoryDance(winnerViewer);
+                console.log('勝者のモデル表示完了');
+            }
+        }
+        catch (error) {
+            console.error('勝者モデル表示エラー:', error);
+        }
+    }
+    startVictoryDance(viewer) {
+        if (!viewer.model)
+            return;
+        const originalY = viewer.model.position.y;
+        const startTime = Date.now();
+        const dance = () => {
+            if (!viewer.model)
+                return;
+            const elapsed = (Date.now() - startTime) / 1000;
+            // 上下に揺れる動き
+            const bounce = Math.sin(elapsed * 4) * 2;
+            viewer.model.position.y = originalY + bounce;
+            // 回転する動き
+            viewer.model.rotation.y = elapsed * 2;
+            // キラキラ効果（スケーリング）
+            const sparkle = 1 + Math.sin(elapsed * 6) * 0.1;
+            viewer.model.scale.setScalar(viewer.model.scale.x * sparkle / (viewer.model.scale.x || 1));
+            // 5秒間踊り続ける
+            if (elapsed < 5) {
+                requestAnimationFrame(dance);
+            }
+            else {
+                // 元の位置と回転に戻す
+                viewer.model.position.y = originalY;
+                viewer.model.rotation.y = 0;
+            }
+        };
+        dance();
     }
     initializeElements() {
         // フェーズ要素
@@ -43,6 +96,7 @@ export class SummonBattleGame {
         this.currentTurnDisplay = this.getElementById('currentTurn');
         // 結果要素
         this.winnerDisplay = this.getElementById('winner');
+        this.winnerViewer = this.getElementById('winnerViewer');
         this.finishComment = this.getElementById('finishComment');
         this.restartBtn = this.getElementById('restartBtn');
         // ローディング
@@ -65,6 +119,7 @@ export class SummonBattleGame {
         this.summon2Select.addEventListener('change', () => this.onSummonSelect(2));
         this.startBattleBtn.addEventListener('click', () => this.startBattle());
         this.attackBtn.addEventListener('click', () => this.performAttack());
+        this.attackInput.addEventListener('input', () => this.updateAttackButtonState());
         this.restartBtn.addEventListener('click', () => this.restart());
         // Enterキーでの送信
         this.attackInput.addEventListener('keypress', (e) => {
@@ -86,11 +141,33 @@ export class SummonBattleGame {
         }, 100);
     }
     showLoading(message) {
-        this.loadingMessage.textContent = message;
-        this.loading.classList.remove('hidden');
+        // ローディング表示を削除し、代わりにUI要素をdisabledにする
+        this.attackInput.disabled = true;
+        this.attackBtn.disabled = true;
+        this.attackBtn.textContent = message;
     }
     hideLoading() {
-        this.loading.classList.add('hidden');
+        // UI要素を有効化
+        this.attackInput.disabled = false;
+        this.attackBtn.disabled = false;
+        this.attackBtn.textContent = '攻撃';
+    }
+    showPollingProgress(attempt, maxAttempts) {
+        const pollingProgress = document.getElementById('pollingProgress');
+        const progressFill = document.getElementById('progressFill');
+        const pollingCount = document.getElementById('pollingCount');
+        pollingProgress.classList.remove('hidden');
+        const percentage = (attempt / maxAttempts) * 100;
+        progressFill.style.width = `${percentage}%`;
+        pollingCount.textContent = attempt.toString();
+    }
+    hidePollingProgress() {
+        const pollingProgress = document.getElementById('pollingProgress');
+        pollingProgress.classList.add('hidden');
+    }
+    updateAttackButtonState() {
+        const hasText = this.attackInput.value.trim().length > 0;
+        this.attackBtn.disabled = !hasText;
     }
     async loadSummonsList() {
         try {
@@ -281,8 +358,11 @@ export class SummonBattleGame {
     }
     updateHP(creatureNumber, currentHP, maxHP) {
         const hpEl = this.getElementById(`creature${creatureNumber}HP`);
+        const hpTextEl = this.getElementById(`creature${creatureNumber}HPText`);
         const percentage = (currentHP / maxHP) * 100;
         hpEl.style.width = `${Math.max(0, percentage)}%`;
+        // HP数値を更新
+        hpTextEl.textContent = `${currentHP}/${maxHP}`;
         if (percentage > 60) {
             hpEl.style.background = 'linear-gradient(90deg, #4CAF50, #81C784)';
         }
@@ -322,7 +402,9 @@ export class SummonBattleGame {
                 this.addBattleLog('Claude Desktopに攻撃プロンプトを送信しました');
                 this.addBattleLog('Claude Desktopからの結果を待機中...');
                 this.showLoading('Claude Desktopからの攻撃結果を待機中...');
-                const mcpResult = await api.pollMCPResult(30, 1000);
+                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
+                    this.showPollingProgress(attempt, maxAttempts);
+                });
                 if (mcpResult && (mcpResult.parsed_data || mcpResult.data)) {
                     console.log('MCP結果を使用して攻撃を処理します');
                     this.showLoading('攻撃結果を処理中...');
@@ -354,6 +436,7 @@ export class SummonBattleGame {
         this.attackInput.value = '';
         this.attackBtn.disabled = false;
         this.hideLoading();
+        this.hidePollingProgress();
     }
     async processMCPAttackResult(mcpResult, attackPrompt) {
         try {
@@ -619,7 +702,9 @@ export class SummonBattleGame {
             this.showLoading('Claude Desktopで決着コメントを生成中...');
             // 2. MCPポーリングで結果を取得
             try {
-                const mcpResult = await api.pollMCPResult();
+                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
+                    this.showPollingProgress(attempt, maxAttempts);
+                });
                 // result_typeが'finish_comment'または決着コメントらしいデータかチェック
                 if (mcpResult && (mcpResult.result_type === 'finish_comment' ||
                     (mcpResult.data && mcpResult.data.comment && !mcpResult.data.attacker))) {
@@ -661,6 +746,8 @@ export class SummonBattleGame {
             this.gamePhase.textContent = 'バトル終了';
             this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
             this.finishComment.textContent = `「${comment}」`;
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
             this.addBattleLog(`決着！${winner.name}の勝利: 「${comment}」`);
         }
         catch (error) {
@@ -679,6 +766,8 @@ export class SummonBattleGame {
             this.gamePhase.textContent = 'バトル終了';
             this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
             this.finishComment.textContent = `「${defaultComment}」`;
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
             this.addBattleLog(`決着！${winner.name}の勝利`);
         }
         catch (error) {
@@ -701,9 +790,13 @@ export class SummonBattleGame {
         this.summon2Input.value = '';
         this.attackInput.value = '';
         this.battleLog.innerHTML = '';
+        // プルダウンリストをリセット
+        this.summon1Select.value = '';
+        this.summon2Select.value = '';
         this.summon1Btn.disabled = false;
         this.summon2Btn.disabled = false;
         this.startBattleBtn.disabled = true;
+        this.updateAttackButtonState();
         this.summon1Status.innerHTML = '';
         this.summon2Status.innerHTML = '';
         if (globalThis.viewers.creature1) {

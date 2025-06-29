@@ -71,6 +71,7 @@
                             <h3 id="creature1Name">-</h3>
                             <div class="hp-bar">
                                 <div id="creature1HP" class="hp-fill"></div>
+                                <span id="creature1HPText" class="hp-text">100/100</span>
                             </div>
                             <p id="creature1Special">-</p>
                         </div>
@@ -84,6 +85,7 @@
                             <h3 id="creature2Name">-</h3>
                             <div class="hp-bar">
                                 <div id="creature2HP" class="hp-fill"></div>
+                                <span id="creature2HPText" class="hp-text">100/100</span>
                             </div>
                             <p id="creature2Special">-</p>
                         </div>
@@ -99,6 +101,12 @@
                     <div class="attack-input">
                         <textarea id="attackInput" placeholder="攻撃呪文を入力してください（例：いてつくはどう）"></textarea>
                         <button id="attackBtn" class="attack-btn">攻撃</button>
+                        <div id="pollingProgress" class="polling-progress hidden">
+                            <div class="progress-bar">
+                                <div id="progressFill" class="progress-fill"></div>
+                            </div>
+                            <span id="pollingText">判定待ち... (<span id="pollingCount">0</span>/30)</span>
+                        </div>
                     </div>
                     
                     <div id="battleLog" class="battle-log"></div>
@@ -108,6 +116,7 @@
             <!-- 結果フェーズ -->
             <div id="resultPhase" class="phase hidden">
                 <div class="result-container">
+                    <div id="winnerViewer" class="winner-viewer"></div>
                     <div id="winner" class="winner-display"></div>
                     <div id="finishComment" class="finish-comment"></div>
                     <button id="restartBtn" class="restart-btn">新しいバトル</button>
