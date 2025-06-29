@@ -5,8 +5,7 @@ import {
     MCPResult, 
     BattleResult, 
     AttackResultData, 
-    ThreeJSViewer,
-    AttackResult
+    ThreeJSViewer
 } from './types.js';
 import { api } from './api.js';
 
@@ -632,11 +631,11 @@ export class SummonBattleGame {
         }
     }
 
-    private async processFallbackAttackResult(attackResult: AttackResult, attackPrompt: string): Promise<void> {
+    private async processFallbackAttackResult(attackResult: AttackResultData, attackPrompt: string): Promise<void> {
         try {
             console.log('攻撃API結果をフォールバック処理:', attackResult);
             
-            const damage = attackResult.damage || 0;
+            const damage = Math.abs(attackResult.defender.damage) || 0;
             const comment = attackResult.comment || `攻撃「${attackPrompt}」が発動！`;
             
             if (damage > 0) {
@@ -675,7 +674,7 @@ export class SummonBattleGame {
             const result = await api.attack(attackPrompt, attacker, defender);
             
             if (result && result.result) {
-                const damage = result.result.damage;
+                const damage = Math.abs(result.result.defender.damage);
                 const comment = result.result.comment;
                 
                 const defenderNumber: 1 | 2 = this.gameState.currentTurn === 1 ? 2 : 1;

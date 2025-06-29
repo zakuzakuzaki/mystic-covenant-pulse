@@ -32,13 +32,8 @@ export interface SummonStatusResponse {
     stats?: CreatureStats;
 }
 
-export interface AttackResult {
-    damage: number;
-    comment: string;
-}
-
 export interface AttackResponse {
-    result: AttackResult;
+    result: AttackResultData;
 }
 
 export interface FinishResponse {

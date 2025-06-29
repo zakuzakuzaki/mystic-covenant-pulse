@@ -9,6 +9,7 @@ import {
     MCPResultStatus,
     SummonBattleAPI as ISummonBattleAPI
 } from './types.js';
+import { MCP_CONFIG } from './constants.js';
 
 /**
  * API通信クラス
@@ -131,7 +132,7 @@ export class SummonBattleAPI implements ISummonBattleAPI {
     /**
      * MCP結果をポーリング
      */
-    async pollMCPResult(maxAttempts: number = 30, interval: number = 1000): Promise<MCPResult | null> {
+    async pollMCPResult(maxAttempts: number = MCP_CONFIG.MAX_ATTEMPTS, interval: number = MCP_CONFIG.POLL_INTERVAL): Promise<MCPResult | null> {
         try {
             console.log(`MCPポーリング開始: 最大${maxAttempts}回試行、${interval}ms間隔`);
             
@@ -163,7 +164,7 @@ export class SummonBattleAPI implements ISummonBattleAPI {
             }
             
             console.log('MCPポーリングタイムアウト');
-            throw new Error('MCP結果のポーリングがタイムアウトしました');
+            throw new Error(MCP_CONFIG.TIMEOUT_MESSAGE);
         } catch (error) {
             console.error('MCP結果ポーリングエラー:', error);
             return null;

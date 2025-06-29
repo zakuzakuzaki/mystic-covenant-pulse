@@ -9,9 +9,9 @@
     "clean": "rimraf ../static/js/*.js ../static/js/*.map ../static/js/*.d.ts"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
     "@types/three": "^0.160.0",
-    "rimraf": "^5.0.0"
+    "rimraf": "^5.0.0",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "three": "^0.160.0"

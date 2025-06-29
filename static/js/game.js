@@ -514,7 +514,7 @@ export class SummonBattleGame {
     async processFallbackAttackResult(attackResult, attackPrompt) {
         try {
             console.log('攻撃API結果をフォールバック処理:', attackResult);
-            const damage = attackResult.damage || 0;
+            const damage = Math.abs(attackResult.defender.damage) || 0;
             const comment = attackResult.comment || `攻撃「${attackPrompt}」が発動！`;
             if (damage > 0) {
                 const defenderNumber = this.gameState.currentTurn === 1 ? 2 : 1;
@@ -548,7 +548,7 @@ export class SummonBattleGame {
         try {
             const result = await api.attack(attackPrompt, attacker, defender);
             if (result && result.result) {
-                const damage = result.result.damage;
+                const damage = Math.abs(result.result.defender.damage);
                 const comment = result.result.comment;
                 const defenderNumber = this.gameState.currentTurn === 1 ? 2 : 1;
                 const newHP = Math.max(0, defender.hp - damage);

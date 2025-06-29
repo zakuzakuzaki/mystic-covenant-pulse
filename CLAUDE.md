@@ -14,11 +14,23 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 # Alternative startup
 python run.py
 
-# Setup Claude Desktop automation coordinates
+# Frontend development (TypeScript compilation)
+cd frontend
+npm install                    # Install dependencies
+npm run build                  # One-time TypeScript compilation
+npm run watch                  # Auto-rebuild on file changes
+npm run clean                  # Clean compiled JS files
+
+# Setup Claude Desktop automation coordinates (required before first use)
 python scripts/setup_claude.py
 
 # Run tests (framework exists but needs implementation)
 pytest tests/
+
+# Code quality checks (if needed)
+black app/                     # Format Python code
+isort app/                     # Sort imports
+flake8 app/                    # Lint Python code
 ```
 
 ## Architecture Overview
@@ -30,18 +42,30 @@ pytest tests/
   - `battle.py` - Battle system with MCP result endpoints
   - `mcp.py` - MCP result management and queue operations
   - `models.py` - Pydantic models for type safety and validation
-- **`app/services/`** - Core business logic:
-  - `claude_controller.py` - Automates Claude Desktop via `pyautogui` + MCP result processing
+- **`app/services/`** - Core business logic (機能別分割済み):
+  - `claude_controller.py` - 統合クラス（各コントローラーへの委譲）
+  - `claude_desktop_client.py` - Claude Desktop GUI自動化クライアント
+  - `summon_controller.py` - 召喚獣生成処理専用コントローラー
+  - `battle_controller.py` - バトル処理専用コントローラー
+  - `mcp_controller.py` - MCP結果処理専用コントローラー
   - `mcp_manager.py` - Single-item queue manager for Claude Desktop outputs
   - `file_manager.py` - Manages UUID-based asset storage in `assets/` directory
-- **`app/core/config.py`** - Configuration management
+- **`app/core/`** - Core application components:
+  - `config.py` - Configuration management
+  - `constants.py` - Application constants (timing, prompts, defaults)
+  - `exceptions.py` - Unified exception classes
 
-### Frontend (Vanilla JS + Three.js)
+### Frontend (TypeScript + Three.js)
+- **Development Environment**: TypeScript in `frontend/src/` compiled to `static/js/`
+- **`frontend/src/`** - TypeScript source files:
+  - `main.ts` - Entry point and DOM ready initialization
+  - `game.ts` - Game logic and UI interactions
+  - `api.ts` - FastAPI communication with type safety
+  - `3d-viewer.ts` - Three.js STL model rendering with orbital controls
+  - `types.ts` - Shared TypeScript type definitions
+  - `constants.ts` - Frontend constants (MCP config, UI settings)
+- **`static/js/`** - Compiled JavaScript output (do not edit directly)
 - **`static/index.html`** - Main game interface
-- **`static/js/`** - JavaScript modules:
-  - `game.js` - Game logic and UI interactions
-  - `api.js` - FastAPI communication
-  - `3d-viewer.js` - Three.js STL model rendering with orbital controls
 
 ### Data Flow
 1. User inputs Japanese summoning incantation
@@ -95,21 +119,32 @@ pytest tests/
 ## Configuration Files
 
 - **`config/app_config.json`** - Server settings, CORS, application metadata
-- **`config/claude_desktop_config.json`** - Mouse coordinates for GUI automation
+- **`config/claude_desktop_config.json`** - Mouse coordinates for GUI automation (gitignored)
 - **`requirements.txt`** - Python dependencies including FastAPI, uvicorn, pyautogui
+- **`frontend/package.json`** - Node.js dependencies for TypeScript compilation
+- **`frontend/tsconfig.json`** - TypeScript compiler configuration
 
 ## Development Notes
 
 ### Critical Dependencies
-- `pyautogui>=0.9.54` - Claude Desktop automation (screen coordinates sensitive)
-- `pyperclip>=1.8.2` - Japanese text clipboard handling
-- `fastapi>=0.104.0` and `uvicorn[standard]>=0.24.0` - Web framework
+- **Backend**: `pyautogui>=0.9.54` (Claude Desktop automation), `pyperclip>=1.8.2` (Japanese text), `fastapi>=0.104.0`, `fastapi-mcp>=0.3.4` (MCP integration)
+- **Frontend**: `typescript^5.0.0`, `three^0.160.0`, `@types/three^0.160.0` for 3D rendering
+- **Development**: Node.js 16+ required for TypeScript compilation
+
+### Architecture Improvements (Latest Refactoring)
+- **Service Layer Separation**: Claude Desktop automation split into specialized controllers
+- **Constants Management**: All hardcoded values extracted to `constants.py/ts`
+- **Unified Error Handling**: Custom exception hierarchy for better error management
+- **Type Safety**: Complete integration of `AttackResultData` replacing legacy `AttackResult`
+- **Code Reduction**: ~30% reduction in codebase size through deduplication
 
 ### Important Considerations
 - **Setup Required**: Run `python scripts/setup_claude.py` to configure Claude Desktop coordinates before first use
 - **GUI Automation**: Application requires Claude Desktop to be running and accessible
 - **Japanese Support**: Full Unicode handling throughout for Japanese incantations and descriptions
 - **File System**: Local storage model - assets directory grows with each summoning
+- **Frontend Development**: Always edit TypeScript in `frontend/src/`, never directly edit compiled JS in `static/js/`
+- **Build Process**: Frontend changes require compilation (`npm run build` or `npm run watch`)
 
 ### Current Status & Implementation Notes
 - **MCP Integration**: Fully implemented with structured data parsing and frontend polling
