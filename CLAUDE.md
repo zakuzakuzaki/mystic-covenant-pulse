@@ -24,10 +24,15 @@ pytest tests/
 ## Architecture Overview
 
 ### Backend (FastAPI + Python 3.8+)
-- **`app/main.py`** - FastAPI application entry point
-- **`app/api/`** - REST endpoints for summoning (`summons.py`) and battle system (`battle.py`)
+- **`app/main.py`** - FastAPI application entry point with MCP router integration
+- **`app/api/`** - REST endpoints:
+  - `summons.py` - Creature summoning and status tracking
+  - `battle.py` - Battle system with MCP result endpoints
+  - `mcp.py` - MCP result management and queue operations
+  - `models.py` - Pydantic models for type safety and validation
 - **`app/services/`** - Core business logic:
-  - `claude_controller.py` - Automates Claude Desktop via `pyautogui` for 3D model generation
+  - `claude_controller.py` - Automates Claude Desktop via `pyautogui` + MCP result processing
+  - `mcp_manager.py` - Single-item queue manager for Claude Desktop outputs
   - `file_manager.py` - Manages UUID-based asset storage in `assets/` directory
 - **`app/core/config.py`** - Configuration management
 
@@ -47,11 +52,31 @@ pytest tests/
 
 ## Key Technical Components
 
+### MCP (Model Context Protocol) Integration
+- **Primary Architecture**: FastAPI server with MCP endpoints for Claude Desktop communication
+- **Result Queue System**: Single-item queue in `assets/mcp_results/` for Claude Desktop outputs
+- **Real-time Processing**: Frontend polls `/api/mcp/result/status` and `/api/mcp/result` for live battle results
+- **Type Safety**: Structured data models (`ClaudeResultData`, `BattleResult`, `AttackResultData`) with automatic parsing
+- **Endpoints**:
+  - `POST /api/mcp/results` - Save Claude Desktop results
+  - `GET /api/mcp/result` - Retrieve and consume queued results  
+  - `GET /api/mcp/result/status` - Check queue status
+
 ### Claude Desktop Integration
 - **Automation Method**: GUI automation using `pyautogui` with position-based clicking
 - **Japanese Text Handling**: Clipboard operations via `pyperclip` for proper Unicode support
 - **Configuration**: Mouse coordinates stored in `config/claude_desktop_config.json`
 - **Prompting System**: Detailed prompts for consistent Blender STL generation and battle mechanics
+- **MCP Workflow**: Attack prompts sent via automation, results retrieved via MCP polling
+
+### Battle System Architecture
+- **Dual Processing**: Traditional API fallback with MCP result prioritization
+- **Attack Flow**: 
+  1. `/api/battle/attack` triggers Claude Desktop automation
+  2. Frontend polls for MCP results (30 attempts, 1s intervals)
+  3. Structured damage/HP calculations applied to game state
+  4. Fallback to API dummy results if MCP times out
+- **Type Handling**: Automatic detection and parsing of `battle_result`, `attack`, `creature_generation` types
 
 ### Asset Management
 - **Structure**: UUID-based directories under `assets/`
@@ -59,6 +84,7 @@ pytest tests/
   - `model.stl` - Generated 3D model
   - `status.json` - Creature stats (name, HP, special moves, description)
   - `summon_status.json` - Generation status tracking
+- **MCP Results**: Temporary storage in `assets/mcp_results/{execution_id}.json`
 - **Background Processing**: Long-running Claude Desktop operations handled as FastAPI background tasks
 
 ### 3D Rendering
@@ -85,11 +111,18 @@ pytest tests/
 - **Japanese Support**: Full Unicode handling throughout for Japanese incantations and descriptions
 - **File System**: Local storage model - assets directory grows with each summoning
 
+### Current Status & Implementation Notes
+- **MCP Integration**: Fully implemented with structured data parsing and frontend polling
+- **Battle System**: Real-time Claude Desktop results with API fallback for reliability
+- **Type Safety**: Complete Pydantic model coverage for all MCP data types
+- **Queue Management**: Single-item MCP result queue prevents accumulation
+- **Error Handling**: Comprehensive fallback system for Claude Desktop automation failures
+- **File Management**: UUID-based storage with automatic cleanup for MCP results
+
 ### Current Limitations
-- Hardcoded damage calculation in battle system (placeholder values)
-- Limited error handling for Claude Desktop automation failures
 - No persistence layer beyond file system storage
-- Single-user design (no multi-user session management)
+- Single-user design (no multi-user session management)  
+- GUI automation dependent on Claude Desktop positioning
 
 ## Testing Strategy
 

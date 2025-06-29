@@ -3,6 +3,8 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from fastapi_mcp import FastApiMCP
+from pydantic import BaseModel
 import uvicorn
 from pathlib import Path
 
@@ -10,6 +12,7 @@ from .core.config import settings
 from .api.models import SummonRequest, SummonResponse, AttackRequest, AttackResponse, FinishRequest, FinishResponse
 from .api.summons import router as summons_router
 from .api.battle import router as battle_router
+from .api.mcp import router as mcp_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -24,6 +27,7 @@ app.mount("/assets", StaticFiles(directory=str(settings.ASSETS_DIR)), name="asse
 # APIルーターの登録
 app.include_router(summons_router, prefix="/api")
 app.include_router(battle_router, prefix="/api")
+app.include_router(mcp_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -49,6 +53,9 @@ async def root():
 async def health_check():
     """ヘルスチェック"""
     return {"status": "ok", "message": "召喚獣バトルAPIは正常に動作しています"}
+
+mcp =FastApiMCP(app)
+mcp.mount()
 
 if __name__ == "__main__":
     uvicorn.run(

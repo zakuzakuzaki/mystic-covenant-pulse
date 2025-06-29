@@ -1,4 +1,3 @@
-
 # Python
 __pycache__/
 *.py[cod]
@@ -41,7 +40,7 @@ venv.bak/
 Thumbs.db
 
 # Project specific - 生成されたファイル
-/assets/*/          # Generated summon models
+assets/*
 config/claude_desktop_config.json
 # 3D Model files (generated)
 *.stl
