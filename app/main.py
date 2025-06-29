@@ -37,7 +37,7 @@ async def root():
         return static_path.read_text(encoding="utf-8")
     return """
     <html>
-        <head><title>召喚獣バトル</title></head>
+        <head><title>Mystic Covenant Pulse</title></head>
         <body>
             <h1>召喚獣バトルアプリ</h1>
             <p>APIサーバーが起動しています</p>
