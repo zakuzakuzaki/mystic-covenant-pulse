@@ -353,13 +353,299 @@ class SummonBattleGame {
             return;
         }
         
+        // 二重実行防止
+        if (this.attackBtn.disabled) {
+            return;
+        }
+        
         this.attackBtn.disabled = true;
-        this.showLoading('攻撃処理中...');
+        this.showLoading('Claude Desktopで攻撃処理中...');
         
         try {
             const attacker = this.gameState.creatures[this.gameState.currentTurn];
             const defender = this.gameState.creatures[this.gameState.currentTurn === 1 ? 2 : 1];
             
+            this.addBattleLog(`${attacker.name}が「${attackPrompt}」で攻撃を開始！`);
+            
+            // まず /api/battle/attack を実行してClaude Desktopに攻撃プロンプトを送信
+            console.log('攻撃API呼び出し開始...');
+            const attackResult = await api.attack(attackPrompt, attacker, defender);
+            
+            if (attackResult && attackResult.result) {
+                this.addBattleLog('Claude Desktopに攻撃プロンプトを送信しました');
+                this.addBattleLog('Claude Desktopからの結果を待機中...');
+                
+                // MCPサーバから結果をポーリング
+                const mcpResult = await api.pollMCPResult(30, 1000); // 30秒間、1秒間隔でポーリング
+                
+                if (mcpResult && (mcpResult.parsed_data || mcpResult.data)) {
+                    console.log('MCP結果を使用して攻撃を処理します');
+                    await this.processMCPAttackResult(mcpResult, attackPrompt);
+                } else {
+                    console.log('MCP結果が取得できないため、攻撃APIの仮結果を使用します');
+                    this.addBattleLog('Claude Desktopからの応答がタイムアウトしました');
+                    this.addBattleLog('攻撃APIの結果で続行します...');
+                    
+                    // 攻撃APIの結果をフォールバックとして使用
+                    await this.processFallbackAttackResult(attackResult.result, attackPrompt);
+                }
+            } else {
+                console.log('攻撃API呼び出しに失敗');
+                this.addBattleLog('攻撃リクエストに失敗しました');
+                throw new Error('攻撃API呼び出しに失敗しました');
+            }
+            
+        } catch (error) {
+            console.error('攻撃エラー:', error);
+            this.addBattleLog('攻撃エラーが発生しました');
+            
+            // フォールバック処理: 攻撃APIを再実行
+            const attacker = this.gameState.creatures[this.gameState.currentTurn];
+            const defender = this.gameState.creatures[this.gameState.currentTurn === 1 ? 2 : 1];
+            await this.performFallbackAttack(attackPrompt, attacker, defender);
+        }
+        
+        this.attackInput.value = '';
+        this.attackBtn.disabled = false;
+        this.hideLoading();
+    }
+
+    async processMCPAttackResult(mcpResult, attackPrompt) {
+        try {
+            console.log('MCP結果を処理中:', mcpResult);
+            
+            // 構造化データがある場合は優先して使用
+            let battleData = null;
+            if (mcpResult.parsed_data) {
+                console.log('構造化データを使用:', mcpResult.parsed_data);
+                battleData = mcpResult.parsed_data;
+            } else if (mcpResult.data) {
+                console.log('生データを使用:', mcpResult.data);
+                battleData = mcpResult.data;
+            } else {
+                console.log('データが見つかりません');
+                throw new Error('MCP結果にデータが含まれていません');
+            }
+            console.log({battleData});
+            // バトル結果の処理
+            if (mcpResult.result_type === 'battle_result' && battleData.battle_result) {
+                await this.processBattleResult(battleData.battle_result, attackPrompt);
+            } else if (mcpResult.result_type === 'attack') {
+                await this.processAttackResult(battleData, attackPrompt);
+            } else if (mcpResult.result_type === 'creature_generation' && mcpResult.creature_generation) {
+                const creature = battleData.creature_generation;
+                this.addBattleLog(`召喚獣「${creature.name}」の生成結果を受信しましたが、バトル中のため無視します`);
+            } else if (mcpResult.result_type === 'model_generation' && mcpResult.model_generation) {
+                this.addBattleLog(`モデル生成結果「${mcpResult.model_generation.model_path}」を受信しましたが、バトル中のため無視します`);
+            } else {
+                // 従来形式または不明な形式の場合はフォールバック処理
+                await this.processFallbackBattleData(battleData, attackPrompt);
+            }
+            
+        } catch (error) {
+            console.error('MCP結果処理エラー:', error);
+            this.addBattleLog('結果処理でエラーが発生しました');
+        }
+    }
+    
+    async processBattleResult(battleResult, attackPrompt) {
+        try {
+            console.log('バトル結果を処理:', battleResult);
+            
+            // バトルコメントを表示
+            this.addBattleLog(battleResult.battle_comment || `攻撃「${attackPrompt}」が発動！`);
+            
+            // HP変更を適用
+            if (battleResult.hp_changes && Object.keys(battleResult.hp_changes).length > 0) {
+                this.applyHPChanges(battleResult.hp_changes);
+            } else if (battleResult.attacker_actions && battleResult.attacker_actions.length > 0) {
+                // アクションベースのダメージ処理
+                const action = battleResult.attacker_actions[0];
+                if (action.damage > 0) {
+                    const defenderNumber = this.gameState.currentTurn === 1 ? 2 : 1;
+                    const defender = this.gameState.creatures[defenderNumber];
+                    const newHP = Math.max(0, defender.hp - action.damage);
+                    
+                    this.gameState.creatures[defenderNumber].hp = newHP;
+                    this.updateHP(defenderNumber, newHP, defender.hp + action.damage);
+                    
+                    if (action.comment) {
+                        this.addBattleLog(action.comment);
+                    }
+                }
+            }
+            
+            // バトル終了判定
+            if (battleResult.battle_end && battleResult.winner) {
+                const winnerNumber = battleResult.winner === this.gameState.creatures[1].name ? 1 : 2;
+                this.endBattle(winnerNumber);
+                return;
+            }
+            
+            // 個別HP確認してバトル継続の場合のみターン交代
+            const battleEnded = this.checkBattleEnd();
+            
+            // ターン終了の場合はターン交代（バトルが終了していない場合のみ）
+            if (!battleEnded && (battleResult.turn_end !== false)) {
+                this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
+                this.updateTurnDisplay();
+            }
+            
+        } catch (error) {
+            console.error('バトル結果処理エラー:', error);
+            this.addBattleLog('バトル結果処理でエラーが発生しました');
+        }
+    }
+    
+    async processAttackResult(attackData, attackPrompt) {
+        try {
+            console.log('攻撃結果を処理:', attackData);
+            
+            // コメントを表示
+            this.addBattleLog(attackData.comment || `攻撃「${attackPrompt}」が発動！`);
+            
+            // 攻撃者のダメージ処理
+            if (attackData.attacker && attackData.attacker.damage !== undefined) {
+                const attackerNumber = this.gameState.currentTurn;
+                const attacker = this.gameState.creatures[attackerNumber];
+                const oldHP = attacker.hp;
+                const newHP = Math.max(0, attacker.hp + attackData.attacker.damage);
+                
+                this.gameState.creatures[attackerNumber].hp = newHP;
+                this.updateHP(attackerNumber, newHP, oldHP);
+            }
+            
+            // 防御者のダメージ処理
+            if (attackData.defender && attackData.defender.damage !== undefined) {
+                const defenderNumber = this.gameState.currentTurn === 1 ? 2 : 1;
+                const defender = this.gameState.creatures[defenderNumber];
+                const oldHP = defender.hp;
+                const newHP = Math.max(0, defender.hp + attackData.defender.damage);
+                
+                this.gameState.creatures[defenderNumber].hp = newHP;
+                this.updateHP(defenderNumber, newHP, oldHP);
+                
+                // 防御者のHPが0以下になった場合、勝敗判定
+                if (newHP <= 0) {
+                    this.endBattle(this.gameState.currentTurn);
+                    return;
+                }
+            }
+            
+            // 個別HP確認してバトル継続の場合のみターン交代
+            const battleEnded = this.checkBattleEnd();
+            
+            // ターン交代（バトルが終了していない場合のみ）
+            if (!battleEnded) {
+                this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
+                this.updateTurnDisplay();
+            }
+            
+        } catch (error) {
+            console.error('攻撃結果処理エラー:', error);
+            this.addBattleLog('攻撃結果処理でエラーが発生しました');
+        }
+    }
+    
+    async processFallbackBattleData(mcpData, attackPrompt) {
+        try {
+            console.log('フォールバック処理でMCPデータを解析:', mcpData);
+            
+            let damage = 0;
+            let comment = '';
+            
+            if (typeof mcpData === 'object') {
+                damage = mcpData.damage || 0;
+                comment = mcpData.comment || `攻撃「${attackPrompt}」が発動！`;
+                
+                // HP変更の指示がある場合
+                if (mcpData.hp_changes) {
+                    this.applyHPChanges(mcpData.hp_changes);
+                    this.addBattleLog(comment);
+                    
+                    // 勝敗判定
+                    const battleEnded = this.checkBattleEnd();
+                    if (battleEnded) return;
+                    
+                    // ターン交代
+                    this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
+                    this.updateTurnDisplay();
+                }
+            } else if (typeof mcpData === 'string') {
+                // 文字列の場合はコメントとして使用し、ランダムダメージを適用
+                comment = mcpData;
+                damage = Math.floor(Math.random() * 30) + 10;
+            }
+            
+            // 通常のダメージ処理
+            if (damage > 0) {
+                const defenderNumber = this.gameState.currentTurn === 1 ? 2 : 1;
+                const defender = this.gameState.creatures[defenderNumber];
+                const newHP = Math.max(0, defender.hp - damage);
+                
+                this.gameState.creatures[defenderNumber].hp = newHP;
+                this.updateHP(defenderNumber, newHP, defender.hp + damage);
+                this.addBattleLog(comment);
+                
+                // 勝敗判定
+                if (newHP <= 0) {
+                    this.endBattle(this.gameState.currentTurn);
+                    return;
+                }
+                
+                // ターン交代
+                this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
+                this.updateTurnDisplay();
+            }
+            
+        } catch (error) {
+            console.error('フォールバック処理エラー:', error);
+            this.addBattleLog('フォールバック処理でエラーが発生しました');
+        }
+    }
+    
+    async processFallbackAttackResult(attackResult, attackPrompt) {
+        try {
+            console.log('攻撃API結果をフォールバック処理:', attackResult);
+            
+            const damage = attackResult.damage || 0;
+            const comment = attackResult.comment || `攻撃「${attackPrompt}」が発動！`;
+            
+            // ダメージ適用
+            if (damage > 0) {
+                const defenderNumber = this.gameState.currentTurn === 1 ? 2 : 1;
+                const defender = this.gameState.creatures[defenderNumber];
+                const oldHP = defender.hp;
+                const newHP = Math.max(0, defender.hp - damage);
+                
+                this.gameState.creatures[defenderNumber].hp = newHP;
+                this.updateHP(defenderNumber, newHP, oldHP);
+                this.addBattleLog(comment);
+                
+                // 勝敗判定
+                if (newHP <= 0) {
+                    this.endBattle(this.gameState.currentTurn);
+                    return;
+                }
+                
+                // ターン交代
+                this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
+                this.updateTurnDisplay();
+            } else {
+                this.addBattleLog(comment);
+                // ダメージがない場合でもターン交代
+                this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
+                this.updateTurnDisplay();
+            }
+            
+        } catch (error) {
+            console.error('攻撃結果フォールバック処理エラー:', error);
+            this.addBattleLog('攻撃結果処理でエラーが発生しました');
+        }
+    }
+
+    async performFallbackAttack(attackPrompt, attacker, defender) {
+        try {
             const result = await api.attack(attackPrompt, attacker, defender);
             
             if (result && result.result) {
@@ -384,18 +670,39 @@ class SummonBattleGame {
                 // ターン交代
                 this.gameState.currentTurn = this.gameState.currentTurn === 1 ? 2 : 1;
                 this.updateTurnDisplay();
-            } else {
-                this.addBattleLog('攻撃処理に失敗しました');
             }
-            
         } catch (error) {
-            console.error('攻撃エラー:', error);
-            this.addBattleLog('攻撃エラーが発生しました');
+            console.error('フォールバック攻撃エラー:', error);
+            this.addBattleLog('フォールバック攻撃も失敗しました');
         }
-        
-        this.attackInput.value = '';
-        this.attackBtn.disabled = false;
-        this.hideLoading();
+    }
+
+    applyHPChanges(hpChanges) {
+        // HP変更を適用（MCPから具体的なHP指示がある場合）
+        for (const [creatureNumber, newHP] of Object.entries(hpChanges)) {
+            const num = parseInt(creatureNumber);
+            if (this.gameState.creatures[num]) {
+                const oldHP = this.gameState.creatures[num].hp;
+                this.gameState.creatures[num].hp = Math.max(0, newHP);
+                this.updateHP(num, this.gameState.creatures[num].hp, oldHP);
+            }
+        }
+    }
+
+    checkBattleEnd() {
+        // 両方の召喚獣のHP状態をチェック
+        if (this.gameState.creatures[1].hp <= 0 && this.gameState.creatures[2].hp <= 0) {
+            this.addBattleLog('引き分けです！');
+            // 引き分け処理
+            return true; // バトル終了
+        } else if (this.gameState.creatures[1].hp <= 0) {
+            this.endBattle(2);
+            return true; // バトル終了
+        } else if (this.gameState.creatures[2].hp <= 0) {
+            this.endBattle(1);
+            return true; // バトル終了
+        }
+        return false; // バトル継続
     }
 
     addBattleLog(message) {
