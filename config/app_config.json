@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "召喚獣バトルAPI",
+    "version": "0.1.0",
+    "description": "召喚呪文から3D召喚獣を生成してバトルするAPI"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": true
+  },
+  "cors": {
+    "allow_origins": ["*"],
+    "allow_credentials": true,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"]
+  }
+}

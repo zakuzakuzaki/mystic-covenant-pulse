@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>召喚獣バトル</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- ヘッダー -->
+        <header class="header">
+            <h1>🔮 召喚獣バトル</h1>
+            <div class="game-status">
+                <span id="gamePhase">召喚準備中</span>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <!-- 召喚フェーズ -->
+            <div id="summonPhase" class="phase">
+                <div class="summon-container">
+                    <div class="summon-panel">
+                        <h2>召喚獣1を呼び出す</h2>
+                        <div class="summon-input">
+                            <select id="summon1Select" class="summon-select">
+                                <option value="">既存の召喚獣を選択</option>
+                            </select>
+                            <div class="or-divider">または</div>
+                            <textarea id="summon1Input" placeholder="召喚呪文を入力してください（例：出でよ神龍 そして願いを叶えたまえ）"></textarea>
+                            <button id="summon1Btn" class="summon-btn">召喚開始</button>
+                        </div>
+                        <div id="summon1Status" class="status"></div>
+                    </div>
+                    
+                    <div class="summon-panel">
+                        <h2>召喚獣2を呼び出す</h2>
+                        <div class="summon-input">
+                            <select id="summon2Select" class="summon-select">
+                                <option value="">既存の召喚獣を選択</option>
+                            </select>
+                            <div class="or-divider">または</div>
+                            <textarea id="summon2Input" placeholder="召喚呪文を入力してください（例：氷雪の女王シヴァよ 我が前に現れよ）"></textarea>
+                            <button id="summon2Btn" class="summon-btn">召喚開始</button>
+                        </div>
+                        <div id="summon2Status" class="status"></div>
+                    </div>
+                </div>
+                
+                <button id="startBattleBtn" class="battle-start-btn" disabled>バトル開始</button>
+            </div>
+
+            <!-- バトルフェーズ -->
+            <div id="battlePhase" class="phase hidden">
+                <!-- 3D表示エリア -->
+                <div class="battle-arena">
+                    <div id="creature1Container" class="creature-container">
+                        <div id="creature1Viewer" class="creature-viewer"></div>
+                        <div id="creature1Info" class="creature-info">
+                            <h3 id="creature1Name">-</h3>
+                            <div class="hp-bar">
+                                <div id="creature1HP" class="hp-fill"></div>
+                            </div>
+                            <p id="creature1Special">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="vs-indicator">VS</div>
+                    
+                    <div id="creature2Container" class="creature-container">
+                        <div id="creature2Viewer" class="creature-viewer"></div>
+                        <div id="creature2Info" class="creature-info">
+                            <h3 id="creature2Name">-</h3>
+                            <div class="hp-bar">
+                                <div id="creature2HP" class="hp-fill"></div>
+                            </div>
+                            <p id="creature2Special">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- バトルコントロール -->
+                <div class="battle-controls">
+                    <div class="turn-indicator">
+                        <span id="currentTurn">プレイヤー1のターン</span>
+                    </div>
+                    
+                    <div class="attack-input">
+                        <textarea id="attackInput" placeholder="攻撃呪文を入力してください（例：いてつくはどう）"></textarea>
+                        <button id="attackBtn" class="attack-btn">攻撃</button>
+                    </div>
+                    
+                    <div id="battleLog" class="battle-log"></div>
+                </div>
+            </div>
+
+            <!-- 結果フェーズ -->
+            <div id="resultPhase" class="phase hidden">
+                <div class="result-container">
+                    <div id="winner" class="winner-display"></div>
+                    <div id="finishComment" class="finish-comment"></div>
+                    <button id="restartBtn" class="restart-btn">新しいバトル</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- ローディング表示 -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p id="loadingMessage">処理中...</p>
+        </div>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/3d-viewer.js"></script>
+    <script src="/static/js/game.js"></script>
+</body>
+</html>
