@@ -9,9 +9,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
+# Setup virtual environment (recommended)
+python -m venv .env
+# Windows: .env\Scripts\activate
+# macOS/Linux: source .env/bin/activate
+pip install -r requirements.txt
+
+# Start development server (with hot-reload)
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 # Start production server (no hot-reload)
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-# Alternative startup
+# Alternative startup (uses config settings)
 python run.py
 
 # Frontend development (TypeScript compilation)
@@ -28,7 +36,7 @@ python scripts/setup_claude.py
 python scripts/send_attack_result.py "炎の剣が敵を貫く！" -50
 python scripts/send_finish_comment.py "勝利の光よ、全てを照らせ！"
 
-# Run tests (framework exists but needs implementation)
+# Run tests (tests directory needs to be created)
 pytest tests/
 
 # Code quality checks (if needed)
@@ -129,6 +137,7 @@ flake8 app/                    # Lint Python code
 - **`requirements.txt`** - Python dependencies including FastAPI, uvicorn, pyautogui
 - **`frontend/package.json`** - Node.js dependencies for TypeScript compilation
 - **`frontend/tsconfig.json`** - TypeScript compiler configuration
+- **`docs/`** - Documentation files including memo.md and protopedia.md
 
 ## Development Notes
 
@@ -167,7 +176,7 @@ flake8 app/                    # Lint Python code
 
 ## Testing Strategy
 
-Test structure exists in `tests/` directory but requires implementation. Key areas needing coverage:
+Test directory (`tests/`) needs to be created. Key areas needing coverage:
 - Claude Desktop automation reliability
 - STL file generation and validation
 - Battle system mechanics
