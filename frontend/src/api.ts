@@ -108,14 +108,14 @@ export class SummonBattleAPI implements ISummonBattleAPI {
     /**
      * 勝負決着
      */
-    async finishBattle(winner: CreatureStats): Promise<FinishResponse | null> {
+    async finishBattle(summonId: string): Promise<FinishResponse | null> {
         try {
             const response = await fetch(`${this.baseURL}/battle/finish`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ winner })
+                body: JSON.stringify({ summon_id: summonId })
             });
             
             if (!response.ok) {

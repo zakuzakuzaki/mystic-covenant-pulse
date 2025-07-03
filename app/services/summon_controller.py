@@ -1,6 +1,7 @@
 """召喚処理コントローラー"""
 
 import asyncio
+import os
 from typing import Optional
 
 from .claude_desktop_client import ClaudeDesktopClient
@@ -16,7 +17,7 @@ class SummonController:
         self.desktop_client = ClaudeDesktopClient()
         self.file_manager = FileManager()
         
-    async def generate_summon(self, prompt: str, summon_id: str) -> bool:
+    async def generate_summon(self, prompt: str, summon_id: str, finish_line: Optional[str] = None) -> bool:
         """召喚獣を生成する"""
         try:
             position = self.desktop_client.load_claude_position()
@@ -25,10 +26,17 @@ class SummonController:
             
             x, y = position
             
+            # リポジトリのルートディレクトリを取得
+            current_dir = os.getcwd()
+            while os.path.basename(current_dir) != "mystic-covenant-pulse" and current_dir != os.path.dirname(current_dir):
+                current_dir = os.path.dirname(current_dir)
+            repo_root = current_dir
+            
             # 召喚獣生成のプロンプトを作成
             claude_prompt = PromptTemplates.SUMMON_TEMPLATE.format(
                 prompt=prompt,
-                summon_id=summon_id
+                summon_id=summon_id,
+                repo_root=repo_root
             )
             
             # Claude Desktopにメッセージを送信

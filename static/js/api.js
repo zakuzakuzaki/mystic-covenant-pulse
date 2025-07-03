@@ -85,14 +85,14 @@ export class SummonBattleAPI {
     /**
      * 勝負決着
      */
-    async finishBattle(winner) {
+    async finishBattle(summonId) {
         try {
             const response = await fetch(`${this.baseURL}/battle/finish`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ winner })
+                body: JSON.stringify({ summon_id: summonId })
             });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);

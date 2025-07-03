@@ -31,8 +31,9 @@ class PromptTemplates:
 以下の形式でSTLファイルとJSONステータスを作成してください：
 
 1. STLファイル：
-   - ファイル名: assets/{summon_id}/model.stl
+   - ファイル名: {repo_root}/assets/{summon_id}/model.stl
    - 召喚獣の3Dモデルを生成
+   - 可能であれば、Hyper3Dを使用してモデルを作成してください。
    - Blenderでモデル作成後、以下のPythonスクリプトを実行してください：
 
 ```python
@@ -40,7 +41,7 @@ import bpy
 import os
 
 # エクスポート設定
-file_path = "assets/{summon_id}/model.stl"
+file_path = "{repo_root}/assets/{summon_id}/model.stl"
 os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
 # 選択されたオブジェクトまたは全オブジェクトをSTL形式でエクスポート
@@ -68,7 +69,8 @@ print(f"STLファイルを保存し、モデルを削除しました: {{file_pat
      "name": "召喚獣名",
      "hp": 数値(1-1000),
      "specialMove": "必殺技名",
-     "description": "召喚獣の説明"
+     "description": "召喚獣の説明",
+     "finishLine": "勝利時の決め台詞（この召喚獣が勝利した時の一言）"
    }}
    ```
 
@@ -98,26 +100,9 @@ print(f"STLファイルを保存し、モデルを削除しました: {{file_pat
 ```
 
 攻撃呪文の内容、双方の能力、相性などを考慮して臨場感のあるコメントとダメージを生成してください。
+チャット欄には極力表示しないでください。
 """
 
-    FINISH_TEMPLATE = """
-勝者：{winner_name}
-特徴：{winner_description}
-必殺技：{winner_special}
-
-この召喚獣が勝利した時の決め台詞を生成してください。
-キャラクターの特徴に合った、かっこいい一言を返してください。
-
-以下のJSON形式で結果を返してください:
-```json
-{{
-    "result_type": "finish_comment",
-    "comment": "勝利時の決め台詞"
-}}
-```
-
-決め台詞は召喚獣の個性を反映した印象的な一言にしてください。
-"""
 
 
 # デフォルト値

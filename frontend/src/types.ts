@@ -37,8 +37,7 @@ export interface AttackResponse {
 }
 
 export interface FinishResponse {
-    success: boolean;
-    message: string;
+    comment: string;
 }
 
 export interface BattleAction {
@@ -137,7 +136,7 @@ export interface SummonBattleAPI {
     createSummon(prompt: string): Promise<SummonResponse | null>;
     getSummonStatus(summonId: string): Promise<SummonStatusResponse | null>;
     attack(prompt: string, me: CreatureStats, enemy: CreatureStats): Promise<AttackResponse | null>;
-    finishBattle(winner: CreatureStats): Promise<FinishResponse | null>;
+    finishBattle(summonId: string): Promise<FinishResponse | null>;
     pollMCPResult(maxAttempts?: number, interval?: number): Promise<MCPResult | null>;
     sendMCPResult(resultData: any): Promise<any>;
     getMCPResultStatus(): Promise<MCPResultStatus | null>;

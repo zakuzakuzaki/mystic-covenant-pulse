@@ -17,10 +17,12 @@ class CreatureStats(BaseModel):
     hp: int = Field(..., ge=1, le=1000, description="HP")
     specialMove: str = Field(..., description="必殺技")
     description: str = Field(..., description="説明")
+    victoryComment: Optional[str] = Field(None, description="勝利コメント")
 
 class SummonRequest(BaseModel):
     """召喚リクエスト"""
     prompt: str = Field(..., min_length=1, max_length=500, description="召喚呪文")
+    victoryComment: Optional[str] = Field(None, max_length=200, description="勝利コメント")
 
 class SummonResponse(BaseModel):
     """召喚レスポンス"""
@@ -47,7 +49,7 @@ class AttackResponse(BaseModel):
 
 class FinishRequest(BaseModel):
     """勝負決着リクエスト"""
-    winner: CreatureStats = Field(..., description="勝者の召喚獣")
+    summonId: str = Field(..., description="勝者の召喚ID", alias="summon_id")
 
 class FinishResponse(BaseModel):
     """勝負決着レスポンス"""

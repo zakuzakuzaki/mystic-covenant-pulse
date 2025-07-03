@@ -691,36 +691,24 @@ export class SummonBattleGame {
         const winner = this.gameState.creatures[winnerNumber];
         if (!winner)
             return;
-        this.showLoading('決着処理を開始しています...');
+        this.showLoading('決着処理中...');
         try {
-            // 1. 決着コメント生成をClaude Desktopに送信
-            const finishResult = await api.finishBattle(winner);
-            if (!finishResult?.success) {
-                throw new Error('決着処理の開始に失敗しました');
-            }
-            this.addBattleLog('決着コメントを生成中...');
-            this.showLoading('Claude Desktopで決着コメントを生成中...');
-            // 2. MCPポーリングで結果を取得
-            try {
-                const mcpResult = await api.pollMCPResult(30, 1000, (attempt, maxAttempts) => {
-                    this.showPollingProgress(attempt, maxAttempts);
-                });
-                // result_typeが'finish_comment'または決着コメントらしいデータかチェック
-                if (mcpResult && (mcpResult.result_type === 'finish_comment' ||
-                    (mcpResult.data && mcpResult.data.comment && !mcpResult.data.attacker))) {
-                    this.showLoading('決着コメントを処理中...');
-                    await this.processFinishResult(mcpResult, winner);
-                }
-                else {
-                    throw new Error('決着コメントの取得に失敗しました');
-                }
-            }
-            catch (mcpError) {
-                console.error('MCP決着結果取得エラー:', mcpError);
-                this.showLoading('フォールバック処理中...');
-                // フォールバック処理
-                await this.processFallbackFinishResult(winner);
-            }
+            // 決着処理を実行（勝者の決め台詞を取得）
+            const winnerSummonId = this.gameState.summonIds[winnerNumber];
+            if (!winnerSummonId)
+                return;
+            const finishResult = await api.finishBattle(winnerSummonId);
+            // 画面を決着画面に切り替え
+            this.battlePhase.classList.add('hidden');
+            this.resultPhase.classList.remove('hidden');
+            this.gamePhase.textContent = 'バトル終了';
+            this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
+            // 勝者の決め台詞を表示
+            const comment = finishResult?.comment || '勝利！';
+            this.finishComment.textContent = `「${comment}」`;
+            // 勝者の3Dモデルを表示
+            await this.showWinnerModel(winner);
+            this.addBattleLog(`決着！${winner.name}の勝利: 「${comment}」`);
         }
         catch (error) {
             console.error('決着処理エラー:', error);
@@ -728,32 +716,6 @@ export class SummonBattleGame {
             await this.processFallbackFinishResult(winner);
         }
         this.hideLoading();
-    }
-    async processFinishResult(mcpResult, winner) {
-        try {
-            console.log('MCP決着結果を処理:', mcpResult);
-            // MCPの結果からコメントを取得
-            let comment = '勝利！';
-            if (mcpResult.parsed_data?.raw_text) {
-                comment = mcpResult.parsed_data.raw_text;
-            }
-            else if (mcpResult.data && typeof mcpResult.data === 'object' && mcpResult.data.comment) {
-                comment = mcpResult.data.comment;
-            }
-            // 画面を決着画面に切り替え
-            this.battlePhase.classList.add('hidden');
-            this.resultPhase.classList.remove('hidden');
-            this.gamePhase.textContent = 'バトル終了';
-            this.winnerDisplay.innerHTML = `🏆 ${winner.name} の勝利！`;
-            this.finishComment.textContent = `「${comment}」`;
-            // 勝者の3Dモデルを表示
-            await this.showWinnerModel(winner);
-            this.addBattleLog(`決着！${winner.name}の勝利: 「${comment}」`);
-        }
-        catch (error) {
-            console.error('決着結果処理エラー:', error);
-            await this.processFallbackFinishResult(winner);
-        }
     }
     async processFallbackFinishResult(winner) {
         try {
